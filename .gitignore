@@ -26,6 +26,11 @@ yarn-error.log*
 # gmail oauth tokens (never commit)
 .gmail-tokens.json
 
+# local sqlite database (migrations + schema are tracked; the db file is not)
+*.db
+*.db-journal
+prisma/dev.db
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

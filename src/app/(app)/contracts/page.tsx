@@ -16,7 +16,8 @@ import SignaturePad from "@/components/SignaturePad";
 import { ago, dateOnly } from "@/lib/format";
 
 export default function ContractsPage() {
-  const { currentUser, users, contracts, setContracts } = useData();
+  const { currentUser, users, contracts, addContract, updateContract } =
+    useData();
   const isAdmin = currentUser?.role === "admin";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showIssue, setShowIssue] = useState(false);
@@ -41,19 +42,12 @@ export default function ContractsPage() {
 
   function sign(signatureDataUrl: string) {
     if (!selected || !currentUser) return;
-    setContracts(
-      contracts.map((c) =>
-        c.id === selected.id
-          ? {
-              ...c,
-              status: "signed",
-              signedAt: new Date().toISOString(),
-              signatureDataUrl,
-              signerName: currentUser.name,
-            }
-          : c
-      )
-    );
+    updateContract(selected.id, {
+      status: "signed",
+      signedAt: new Date().toISOString(),
+      signatureDataUrl,
+      signerName: currentUser.name,
+    });
   }
 
   const pendingCount = visible.filter((c) => c.status === "pending").length;
@@ -216,9 +210,9 @@ export default function ContractsPage() {
           open={showIssue}
           onClose={() => setShowIssue(false)}
           employees={users.filter((u) => u.role === "employee")}
-          onIssue={(c) => {
-            setContracts([c, ...contracts]);
-            setSelectedId(c.id);
+          onIssue={async (input) => {
+            const created = await addContract(input);
+            setSelectedId(created.id);
           }}
         />
       )}
@@ -276,7 +270,7 @@ function IssueModal({
   open: boolean;
   onClose: () => void;
   employees: { id: string; name: string }[];
-  onIssue: (c: Contract) => void;
+  onIssue: (input: Omit<Contract, "id">) => Promise<void>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -312,14 +306,13 @@ function IssueModal({
     reader.readAsDataURL(file);
   }
 
-  function submit() {
+  async function submit() {
     const emp = employees.find((e) => e.id === assignee);
     if (!dataUrl || !title.trim() || !emp) {
       setError("Add a title, choose a PDF, and select an employee.");
       return;
     }
-    onIssue({
-      id: `contract-${Date.now()}`,
+    await onIssue({
       title: title.trim(),
       assignedToId: emp.id,
       assignedToName: emp.name,

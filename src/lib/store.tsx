@@ -17,34 +17,36 @@ import {
   TimeEntry,
   User,
 } from "./types";
-import {
-  SAMPLE_USERS,
-  sampleApplicants,
-  sampleApplications,
-  sampleContracts,
-  sampleListings,
-  sampleSops,
-  sampleTimeEntries,
-} from "./sampleData";
 
-const PREFIX = "career-ops:";
+const CURRENT_USER_KEY = "career-ops:currentUserId";
 
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(PREFIX + key);
-    if (raw) return JSON.parse(raw) as T;
-  } catch {
-    /* ignore */
-  }
-  return fallback;
+async function apiCreate<T>(resource: string, input: unknown): Promise<T> {
+  const res = await fetch(`/api/${resource}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Create ${resource} failed`);
+  return res.json();
 }
 
-function save<T>(key: string, value: T) {
-  try {
-    localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    /* ignore (quota / private mode) */
-  }
+async function apiPatch<T>(
+  resource: string,
+  id: string,
+  patch: unknown
+): Promise<T> {
+  const res = await fetch(`/api/${resource}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Update ${resource} failed`);
+  return res.json();
+}
+
+async function apiDelete(resource: string, id: string): Promise<void> {
+  const res = await fetch(`/api/${resource}/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete ${resource} failed`);
 }
 
 export interface GmailStatus {
@@ -63,22 +65,29 @@ interface AppData {
   logout: () => void;
 
   applications: JobApplication[];
-  setApplications: (a: JobApplication[]) => void;
+  addApplication: (input: Omit<JobApplication, "id">) => Promise<JobApplication>;
+  removeApplication: (id: string) => Promise<void>;
+  setApplicationsAll: (apps: JobApplication[]) => void;
 
   timeEntries: TimeEntry[];
-  setTimeEntries: (t: TimeEntry[]) => void;
+  addTimeEntry: (input: Omit<TimeEntry, "id">) => Promise<TimeEntry>;
+  updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => Promise<void>;
+  removeTimeEntry: (id: string) => Promise<void>;
 
   sops: SopDoc[];
-  setSops: (s: SopDoc[]) => void;
+  addSop: (input: Omit<SopDoc, "id">) => Promise<SopDoc>;
+  removeSop: (id: string) => Promise<void>;
 
   contracts: Contract[];
-  setContracts: (c: Contract[]) => void;
+  addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
+  updateContract: (id: string, patch: Partial<Contract>) => Promise<void>;
 
   applicants: Applicant[];
-  setApplicants: (a: Applicant[]) => void;
+  addApplicant: (input: Omit<Applicant, "id">) => Promise<Applicant>;
+  updateApplicant: (id: string, patch: Partial<Applicant>) => Promise<void>;
 
   listings: JobListing[];
-  setListings: (l: JobListing[]) => void;
+  updateListing: (id: string, patch: Partial<JobListing>) => Promise<void>;
 
   gmail: GmailStatus;
   setGmail: (g: GmailStatus) => void;
@@ -88,16 +97,16 @@ const Ctx = createContext<AppData | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [users] = useState<User[]>(SAMPLE_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const [applications, setApplicationsState] = useState<JobApplication[]>([]);
-  const [timeEntries, setTimeEntriesState] = useState<TimeEntry[]>([]);
-  const [sops, setSopsState] = useState<SopDoc[]>([]);
-  const [contracts, setContractsState] = useState<Contract[]>([]);
-  const [applicants, setApplicantsState] = useState<Applicant[]>([]);
-  const [listings, setListingsState] = useState<JobListing[]>([]);
-  const [gmail, setGmailState] = useState<GmailStatus>({
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [sops, setSops] = useState<SopDoc[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [listings, setListings] = useState<JobListing[]>([]);
+  const [gmail, setGmail] = useState<GmailStatus>({
     connected: false,
     configured: false,
   });
@@ -108,69 +117,135 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (didInit.current) return;
     didInit.current = true;
 
-    const savedUserId = load<string | null>("currentUserId", null);
-    if (savedUserId) {
-      const u = SAMPLE_USERS.find((x) => x.id === savedUserId) ?? null;
+    (async () => {
+      try {
+        const res = await fetch("/api/bootstrap");
+        const data = await res.json();
+        setUsers(data.users ?? []);
+        setApplications(data.applications ?? []);
+        setTimeEntries(data.timeEntries ?? []);
+        setSops(data.sops ?? []);
+        setContracts(data.contracts ?? []);
+        setApplicants(data.applicants ?? []);
+        setListings(data.listings ?? []);
+
+        const savedId = localStorage.getItem(CURRENT_USER_KEY);
+        if (savedId) {
+          const u = (data.users as User[]).find((x) => x.id === savedId);
+          if (u) setCurrentUser(u);
+        }
+      } catch {
+        /* leave empty; UI shows empty states */
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  const login = useCallback(
+    (userId: string) => {
+      const u = users.find((x) => x.id === userId) ?? null;
       setCurrentUser(u);
-    }
-
-    setApplicationsState(load("applications", sampleApplications()));
-    setTimeEntriesState(
-      load("timeEntries", [
-        ...sampleTimeEntries("u-emp-1"),
-        ...sampleTimeEntries("u-emp-2"),
-        ...sampleTimeEntries("u-admin"),
-      ])
-    );
-    setSopsState(load("sops", sampleSops()));
-    setContractsState(load("contracts", sampleContracts()));
-    setApplicantsState(load("applicants", sampleApplicants()));
-    setListingsState(load("listings", sampleListings()));
-    setGmailState(load("gmail", { connected: false, configured: false }));
-
-    setReady(true);
-  }, []);
-
-  // Persisting wrappers
-  const setApplications = useCallback((a: JobApplication[]) => {
-    setApplicationsState(a);
-    save("applications", a);
-  }, []);
-  const setTimeEntries = useCallback((t: TimeEntry[]) => {
-    setTimeEntriesState(t);
-    save("timeEntries", t);
-  }, []);
-  const setSops = useCallback((s: SopDoc[]) => {
-    setSopsState(s);
-    save("sops", s);
-  }, []);
-  const setContracts = useCallback((c: Contract[]) => {
-    setContractsState(c);
-    save("contracts", c);
-  }, []);
-  const setApplicants = useCallback((a: Applicant[]) => {
-    setApplicantsState(a);
-    save("applicants", a);
-  }, []);
-  const setListings = useCallback((l: JobListing[]) => {
-    setListingsState(l);
-    save("listings", l);
-  }, []);
-  const setGmail = useCallback((g: GmailStatus) => {
-    setGmailState(g);
-    save("gmail", g);
-  }, []);
-
-  const login = useCallback((userId: string) => {
-    const u = SAMPLE_USERS.find((x) => x.id === userId) ?? null;
-    setCurrentUser(u);
-    save("currentUserId", userId);
-  }, []);
+      try {
+        localStorage.setItem(CURRENT_USER_KEY, userId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [users]
+  );
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-    save<string | null>("currentUserId", null);
+    try {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  // ── Applications ──
+  const addApplication = useCallback(
+    async (input: Omit<JobApplication, "id">) => {
+      const created = await apiCreate<JobApplication>("applications", input);
+      setApplications((prev) => [created, ...prev]);
+      return created;
+    },
+    []
+  );
+  const removeApplication = useCallback(async (id: string) => {
+    await apiDelete("applications", id);
+    setApplications((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+  const setApplicationsAll = useCallback((apps: JobApplication[]) => {
+    setApplications(apps);
+  }, []);
+
+  // ── Time entries ──
+  const addTimeEntry = useCallback(async (input: Omit<TimeEntry, "id">) => {
+    const created = await apiCreate<TimeEntry>("time-entries", input);
+    setTimeEntries((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const updateTimeEntry = useCallback(
+    async (id: string, patch: Partial<TimeEntry>) => {
+      const updated = await apiPatch<TimeEntry>("time-entries", id, patch);
+      setTimeEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    },
+    []
+  );
+  const removeTimeEntry = useCallback(async (id: string) => {
+    await apiDelete("time-entries", id);
+    setTimeEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  // ── SOPs ──
+  const addSop = useCallback(async (input: Omit<SopDoc, "id">) => {
+    const created = await apiCreate<SopDoc>("sops", input);
+    setSops((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const removeSop = useCallback(async (id: string) => {
+    await apiDelete("sops", id);
+    setSops((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  // ── Contracts ──
+  const addContract = useCallback(async (input: Omit<Contract, "id">) => {
+    const created = await apiCreate<Contract>("contracts", input);
+    setContracts((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const updateContract = useCallback(
+    async (id: string, patch: Partial<Contract>) => {
+      const updated = await apiPatch<Contract>("contracts", id, patch);
+      setContracts((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    },
+    []
+  );
+
+  // ── Applicants ──
+  const addApplicant = useCallback(async (input: Omit<Applicant, "id">) => {
+    const created = await apiCreate<Applicant>("applicants", input);
+    setApplicants((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const updateApplicant = useCallback(
+    async (id: string, patch: Partial<Applicant>) => {
+      const updated = await apiPatch<Applicant>("applicants", id, patch);
+      setApplicants((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    },
+    []
+  );
+
+  // ── Listings ──
+  const updateListing = useCallback(
+    async (id: string, patch: Partial<JobListing>) => {
+      const updated = await apiPatch<JobListing>("listings", id, patch);
+      setListings((prev) => prev.map((l) => (l.id === id ? updated : l)));
+    },
+    []
+  );
 
   const value: AppData = {
     ready,
@@ -179,17 +254,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     applications,
-    setApplications,
+    addApplication,
+    removeApplication,
+    setApplicationsAll,
     timeEntries,
-    setTimeEntries,
+    addTimeEntry,
+    updateTimeEntry,
+    removeTimeEntry,
     sops,
-    setSops,
+    addSop,
+    removeSop,
     contracts,
-    setContracts,
+    addContract,
+    updateContract,
     applicants,
-    setApplicants,
+    addApplicant,
+    updateApplicant,
     listings,
-    setListings,
+    updateListing,
     gmail,
     setGmail,
   };

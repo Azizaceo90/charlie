@@ -1,0 +1,101 @@
+// Prisma schema for Career Ops dashboard.
+//
+// Default provider is SQLite for zero-setup local development. To deploy on a
+// serverless host (e.g. Vercel) switch `provider` to "postgresql" and point
+// DATABASE_URL at a managed Postgres (Neon / Vercel Postgres / Supabase), then
+// run `npx prisma migrate deploy`. Enum-like fields are stored as strings so
+// the same schema works across both databases.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  role        String // "admin" | "employee"
+  title       String?
+  avatarColor String?
+
+  timeEntries TimeEntry[]
+  contracts   Contract[]  @relation("AssignedContracts")
+}
+
+model JobApplication {
+  id           String   @id @default(cuid())
+  company      String
+  role         String
+  status       String // applied | assessment | interview | offer | rejected
+  date         DateTime
+  source       String // gmail | manual
+  emailSubject String?
+  emailFrom    String?
+  location     String?
+  createdAt    DateTime @default(now())
+}
+
+model TimeEntry {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn  DateTime
+  clockOut DateTime?
+  project  String?
+  note     String?
+}
+
+model SopDoc {
+  id         String   @id @default(cuid())
+  title      String
+  category   String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+  fileName   String
+  dataUrl    String
+  sizeKb     Int
+}
+
+model Contract {
+  id               String    @id @default(cuid())
+  title            String
+  assignedToId     String
+  assignedTo       User      @relation("AssignedContracts", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedToName   String
+  status           String // pending | signed
+  fileName         String
+  dataUrl          String
+  issuedAt         DateTime  @default(now())
+  signedAt         DateTime?
+  signatureDataUrl String?
+  signerName       String?
+}
+
+model Applicant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  role      String
+  stage     String // applied | screening | assessment | interview | offer | hired | rejected
+  appliedAt DateTime @default(now())
+  rating    Int?
+  location  String?
+}
+
+model JobListing {
+  id          String   @id @default(cuid())
+  title       String
+  company     String
+  location    String
+  type        String
+  salary      String?
+  postedAt    DateTime
+  saved       Boolean  @default(false)
+  applied     Boolean  @default(false)
+  description String
+}

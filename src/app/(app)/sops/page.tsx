@@ -9,7 +9,7 @@ import PdfViewer from "@/components/PdfViewer";
 import { ago } from "@/lib/format";
 
 export default function SopsPage() {
-  const { currentUser, sops, setSops } = useData();
+  const { currentUser, sops, addSop, removeSop } = useData();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -35,8 +35,8 @@ export default function SopsPage() {
 
   const selected = sops.find((s) => s.id === selectedId) ?? filtered[0] ?? null;
 
-  function remove(id: string) {
-    setSops(sops.filter((s) => s.id !== id));
+  async function remove(id: string) {
+    await removeSop(id);
     if (selectedId === id) setSelectedId(null);
   }
 
@@ -167,9 +167,9 @@ export default function SopsPage() {
         onClose={() => setShowUpload(false)}
         uploadedBy={currentUser?.name ?? "Unknown"}
         existingCategories={categories.filter((c) => c !== "All")}
-        onAdd={(doc) => {
-          setSops([doc, ...sops]);
-          setSelectedId(doc.id);
+        onAdd={async (input) => {
+          const created = await addSop(input);
+          setSelectedId(created.id);
         }}
       />
     </div>
@@ -187,7 +187,7 @@ function UploadModal({
   onClose: () => void;
   uploadedBy: string;
   existingCategories: string[];
-  onAdd: (doc: SopDoc) => void;
+  onAdd: (input: Omit<SopDoc, "id">) => Promise<void>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -223,13 +223,12 @@ function UploadModal({
     reader.readAsDataURL(file);
   }
 
-  function submit() {
+  async function submit() {
     if (!dataUrl || !title.trim()) {
       setError("Add a title and choose a PDF.");
       return;
     }
-    onAdd({
-      id: `sop-${Date.now()}`,
+    await onAdd({
       title: title.trim(),
       category: category.trim() || "General",
       uploadedBy,

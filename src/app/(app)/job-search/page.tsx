@@ -10,7 +10,7 @@ import {
   Send,
 } from "lucide-react";
 import { useData } from "@/lib/store";
-import { JobApplication, JobListing } from "@/lib/types";
+import { JobListing } from "@/lib/types";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { ago } from "@/lib/format";
 
@@ -19,7 +19,7 @@ type Tab = "all" | "saved" | "applied";
 const TYPES = ["All", "Full-time", "Part-time", "Contract", "Remote", "Internship"];
 
 export default function JobSearchPage() {
-  const { listings, setListings, applications, setApplications } = useData();
+  const { listings, updateListing, addApplication } = useData();
   const [query, setQuery] = useState("");
   const [type, setType] = useState("All");
   const [tab, setTab] = useState<Tab>("all");
@@ -39,27 +39,21 @@ export default function JobSearchPage() {
     });
   }, [listings, query, type, tab]);
 
-  function toggleSave(id: string) {
-    setListings(
-      listings.map((l) => (l.id === id ? { ...l, saved: !l.saved } : l))
-    );
+  function toggleSave(listing: JobListing) {
+    updateListing(listing.id, { saved: !listing.saved });
   }
 
-  function apply(listing: JobListing) {
+  async function apply(listing: JobListing) {
     if (listing.applied) return;
-    setListings(
-      listings.map((l) => (l.id === listing.id ? { ...l, applied: true } : l))
-    );
-    const entry: JobApplication = {
-      id: `manual-${listing.id}`,
+    await updateListing(listing.id, { applied: true });
+    await addApplication({
       company: listing.company,
       role: listing.title,
       status: "applied",
       date: new Date().toISOString(),
       source: "manual",
       location: listing.location,
-    };
-    setApplications([entry, ...applications]);
+    });
   }
 
   const savedCount = listings.filter((l) => l.saved).length;
@@ -126,7 +120,7 @@ export default function JobSearchPage() {
                   <div className="text-sm text-slate-400">{l.company}</div>
                 </div>
                 <button
-                  onClick={() => toggleSave(l.id)}
+                  onClick={() => toggleSave(l)}
                   className="rounded-md p-1.5 text-slate-400 hover:bg-bg-hover hover:text-brand-soft"
                   title={l.saved ? "Unsave" : "Save"}
                 >

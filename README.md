@@ -33,14 +33,40 @@ Pick a profile on the sign-in screen (prototype auth, no password):
 ## Getting started
 
 ```bash
-npm install
+npm install            # also generates the Prisma client
+cp .env.example .env   # local default uses a SQLite file — no DB server needed
+npm run setup          # creates the database and loads sample data
 npm run dev
 ```
 
 Open <http://localhost:3000>.
 
-The app ships with realistic **sample data** so every dashboard is populated
-immediately.
+The app ships with realistic **sample data** (3 users + applications, time
+entries, SOPs, contracts, applicants and listings) so every dashboard is
+populated immediately.
+
+## Data & persistence
+
+Data is stored in a real database via **Prisma**. All reads/writes go through
+REST API routes under `/api`:
+
+- `GET /api/bootstrap` — loads every collection on startup
+- `POST /api/<resource>` / `PATCH /api/<resource>/<id>` / `DELETE …` — generic
+  CRUD for `applications`, `time-entries`, `sops`, `contracts`, `applicants`,
+  `listings`
+
+Locally the database is a zero-setup **SQLite** file (`prisma/dev.db`). The same
+schema runs on **Postgres** for production (see Deployment). Useful scripts:
+
+```bash
+npm run db:seed    # reload sample data
+npm run db:reset   # drop, re-migrate and re-seed
+npx prisma studio  # browse/edit the database in a GUI
+```
+
+> Sign-in is a lightweight profile picker (no password) — the chosen profile id
+> is the only thing kept in the browser. Swapping in real auth (e.g.
+> NextAuth/Clerk) is the natural next step.
 
 ## Connecting real Gmail (optional)
 
@@ -58,10 +84,39 @@ To connect your real account:
 Tokens are stored locally in `.gmail-tokens.json` (gitignored) and Gmail is
 accessed **read-only**.
 
+## Deployment (live URL)
+
+The app deploys to any Next.js host. Since SQLite files don't persist on
+serverless platforms, switch to **Postgres** for production. On Vercel + a free
+managed Postgres (Neon / Vercel Postgres / Supabase):
+
+1. In `prisma/schema.prisma`, change the datasource provider:
+   ```prisma
+   datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
+   ```
+2. Create a Postgres database and copy its connection string.
+3. Push the schema and (optionally) seed it:
+   ```bash
+   DATABASE_URL="postgresql://…" npx prisma db push
+   DATABASE_URL="postgresql://…" npm run db:seed
+   ```
+4. Push this repo to GitHub and import it in Vercel.
+5. In Vercel → Project → Settings → Environment Variables, set:
+   - `DATABASE_URL` — your Postgres connection string
+   - (optional) `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+     `GOOGLE_REDIRECT_URI` (`https://YOUR-DOMAIN/api/gmail/callback`)
+6. Deploy. The build runs `prisma generate && next build` automatically.
+
+> `npm run db:push` uses the schema directly, so the SQLite migration files in
+> `prisma/migrations/` (which are SQLite-dialect) don't need to be replayed on
+> Postgres.
+
 ## Notes
 
-- This is a front-end prototype: app data (applications, time, SOPs, contracts,
-  applicants) lives in the browser's localStorage. Clearing site data resets it
-  to the sample set. Swapping in a real database is the natural next step.
-- Uploaded PDFs are stored as data URLs in localStorage, so keep sample uploads
-  small (the uploader caps files at 8 MB).
+- Uploaded PDFs are stored as data URLs (text) in the database, so keep uploads
+  small — the uploader caps files at 8 MB.
+- Gmail is accessed **read-only**; OAuth tokens live in `.gmail-tokens.json`
+  (gitignored) locally. For production, move token storage into the database.

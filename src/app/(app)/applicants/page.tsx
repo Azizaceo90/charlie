@@ -18,7 +18,7 @@ const STAGES: { key: ApplicantStage; label: string; color: string }[] = [
 ];
 
 export default function ApplicantsPage() {
-  const { currentUser, applicants, setApplicants } = useData();
+  const { currentUser, applicants, addApplicant, updateApplicant } = useData();
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
 
@@ -46,7 +46,7 @@ export default function ApplicantsPage() {
   }
 
   function move(id: string, stage: ApplicantStage) {
-    setApplicants(applicants.map((a) => (a.id === id ? { ...a, stage } : a)));
+    updateApplicant(id, { stage });
   }
 
   const active = applicants.filter(
@@ -124,7 +124,7 @@ export default function ApplicantsPage() {
       <AddApplicantModal
         open={showAdd}
         onClose={() => setShowAdd(false)}
-        onAdd={(a) => setApplicants([a, ...applicants])}
+        onAdd={(input) => addApplicant(input)}
       />
     </div>
   );
@@ -181,7 +181,7 @@ function AddApplicantModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onAdd: (a: Applicant) => void;
+  onAdd: (input: Omit<Applicant, "id">) => Promise<Applicant>;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -189,10 +189,9 @@ function AddApplicantModal({
   const [stage, setStage] = useState<ApplicantStage>("applied");
   const [location, setLocation] = useState("");
 
-  function submit() {
+  async function submit() {
     if (!name.trim()) return;
-    onAdd({
-      id: `applicant-${Date.now()}`,
+    await onAdd({
       name: name.trim(),
       email: email.trim() || "unknown@example.com",
       role: role.trim() || "Unspecified",

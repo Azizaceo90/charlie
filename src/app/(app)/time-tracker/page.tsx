@@ -32,7 +32,8 @@ function fmtClock(ms: number): string {
 }
 
 export default function TimeTrackerPage() {
-  const { currentUser, timeEntries, setTimeEntries } = useData();
+  const { currentUser, timeEntries, addTimeEntry, updateTimeEntry, removeTimeEntry } =
+    useData();
   const [tick, setTick] = useState(Date.now());
   const [project, setProject] = useState(PROJECTS[0]);
   const [note, setNote] = useState("");
@@ -69,28 +70,22 @@ export default function TimeTrackerPage() {
 
   function clockIn() {
     if (active || !currentUser) return;
-    const entry: TimeEntry = {
-      id: `te-${Date.now()}`,
+    addTimeEntry({
       userId: currentUser.id,
       clockIn: new Date().toISOString(),
       project,
       note: note.trim() || undefined,
-    };
-    setTimeEntries([entry, ...timeEntries]);
+    });
     setNote("");
   }
 
   function clockOut() {
     if (!active) return;
-    setTimeEntries(
-      timeEntries.map((e) =>
-        e.id === active.id ? { ...e, clockOut: new Date().toISOString() } : e
-      )
-    );
+    updateTimeEntry(active.id, { clockOut: new Date().toISOString() });
   }
 
   function remove(id: string) {
-    setTimeEntries(timeEntries.filter((e) => e.id !== id));
+    removeTimeEntry(id);
   }
 
   const elapsed = active
@@ -296,25 +291,23 @@ function ManualEntryModal({
   onClose: () => void;
   projects: string[];
 }) {
-  const { currentUser, timeEntries, setTimeEntries } = useData();
+  const { currentUser, addTimeEntry } = useData();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const [project, setProject] = useState(projects[0]);
 
-  function submit() {
+  async function submit() {
     if (!currentUser) return;
     const clockIn = new Date(`${date}T${start}`).toISOString();
     const clockOut = new Date(`${date}T${end}`).toISOString();
     if (new Date(clockOut) <= new Date(clockIn)) return;
-    const entry: TimeEntry = {
-      id: `te-${Date.now()}`,
+    await addTimeEntry({
       userId: currentUser.id,
       clockIn,
       clockOut,
       project,
-    };
-    setTimeEntries([entry, ...timeEntries]);
+    });
     onClose();
   }
 

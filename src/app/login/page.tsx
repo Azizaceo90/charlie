@@ -32,6 +32,11 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3">
+          {!ready && (
+            <div className="py-8 text-center text-sm text-slate-500">
+              Loading profiles…
+            </div>
+          )}
           {users.map((u) => (
             <button
               key={u.id}

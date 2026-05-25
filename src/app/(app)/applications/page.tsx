@@ -35,7 +35,7 @@ export default function ApplicationsPage() {
 }
 
 function ApplicationsInner() {
-  const { applications, setApplications, gmail, setGmail } = useData();
+  const { applications, setApplicationsAll, gmail, setGmail } = useData();
   const [range, setRange] = useState<RangeKey>("7days");
   const [now, setNow] = useState(() => new Date());
   const [syncing, setSyncing] = useState(false);
@@ -83,12 +83,9 @@ function ApplicationsInner() {
       const res = await fetch("/api/gmail/sync");
       if (res.ok) {
         const data = await res.json();
-        const fetched: JobApplication[] = data.applications ?? [];
-        // merge: gmail-sourced replaced by fresh sync, keep manual entries
-        const manual = applications.filter((a) => a.source === "manual");
-        setApplications([...fetched, ...manual]);
+        setApplicationsAll(data.applications ?? []);
         setGmail({ ...gmail, connected: true, lastSynced: data.syncedAt });
-        setToast(`Synced ${fetched.length} applications from Gmail.`);
+        setToast(`Synced ${data.synced ?? 0} applications from Gmail.`);
       } else if (res.status === 401) {
         setToast("Gmail isn't connected yet.");
       } else {
@@ -364,22 +361,20 @@ function AddApplicationModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { applications, setApplications } = useData();
+  const { addApplication } = useData();
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState<ApplicationStatus>("applied");
 
-  function submit() {
+  async function submit() {
     if (!company.trim()) return;
-    const entry: JobApplication = {
-      id: `manual-${Date.now()}`,
+    await addApplication({
       company: company.trim(),
       role: role.trim() || "Role not specified",
       status,
       date: new Date().toISOString(),
       source: "manual",
-    };
-    setApplications([entry, ...applications]);
+    });
     setCompany("");
     setRole("");
     setStatus("applied");
