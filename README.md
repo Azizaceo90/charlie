@@ -4,10 +4,14 @@ A multi-dashboard web app for running a small team's career operations:
 track job applications from Gmail, log time, browse jobs, manage SOPs and
 contracts, and review your hiring pipeline.
 
-Built with **Next.js 14 (App Router) + TypeScript + Tailwind CSS**. Data is
-persisted in your browser (localStorage) so the prototype works with zero
-backend setup; the Gmail integration is real and activates as soon as you add
-Google credentials.
+Built with **Next.js 14 (App Router) + TypeScript + Tailwind CSS**, backed by
+**Postgres** via **Prisma**. The Gmail integration is real and activates as soon
+as you add Google credentials.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Azizaceo90/charlie&env=DATABASE_URL&envDescription=Postgres%20connection%20string%20from%20Neon)
+
+> One-click deploy needs a Postgres `DATABASE_URL` (a free
+> [Neon](https://neon.tech) database). See [Deployment](#deployment-live-url).
 
 ## Dashboards
 
@@ -32,10 +36,14 @@ Pick a profile on the sign-in screen (prototype auth, no password):
 
 ## Getting started
 
+You need a **Postgres** connection string. A free [Neon](https://neon.tech)
+database works for both local development and production — create a project and
+copy its connection string.
+
 ```bash
-npm install            # also generates the Prisma client
-cp .env.example .env   # local default uses a SQLite file — no DB server needed
-npm run setup          # creates the database and loads sample data
+npm install                       # also generates the Prisma client
+cp .env.example .env              # then paste your DATABASE_URL into .env
+npm run setup                     # creates the tables and loads sample data
 npm run dev
 ```
 
@@ -47,20 +55,21 @@ populated immediately.
 
 ## Data & persistence
 
-Data is stored in a real database via **Prisma**. All reads/writes go through
-REST API routes under `/api`:
+Data is stored in **Postgres** via **Prisma**. All reads/writes go through REST
+API routes under `/api`:
 
-- `GET /api/bootstrap` — loads every collection on startup
+- `GET /api/bootstrap` — loads every collection on startup (and auto-seeds
+  sample data if the database is empty)
 - `POST /api/<resource>` / `PATCH /api/<resource>/<id>` / `DELETE …` — generic
   CRUD for `applications`, `time-entries`, `sops`, `contracts`, `applicants`,
   `listings`
 
-Locally the database is a zero-setup **SQLite** file (`prisma/dev.db`). The same
-schema runs on **Postgres** for production (see Deployment). Useful scripts:
+Useful scripts:
 
 ```bash
+npm run db:push    # create/update tables to match the schema
 npm run db:seed    # reload sample data
-npm run db:reset   # drop, re-migrate and re-seed
+npm run db:reset   # wipe and re-seed
 npx prisma studio  # browse/edit the database in a GUI
 ```
 
@@ -86,33 +95,22 @@ accessed **read-only**.
 
 ## Deployment (live URL)
 
-The app deploys to any Next.js host. Since SQLite files don't persist on
-serverless platforms, switch to **Postgres** for production. On Vercel + a free
-managed Postgres (Neon / Vercel Postgres / Supabase):
+Deploys to **Vercel** with a free **Neon** Postgres database. You don't run any
+commands — Vercel creates the tables on deploy (`vercel-build` runs
+`prisma db push`), and the app seeds sample data automatically on first load.
 
-1. In `prisma/schema.prisma`, change the datasource provider:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-2. Create a Postgres database and copy its connection string.
-3. Push the schema and (optionally) seed it:
-   ```bash
-   DATABASE_URL="postgresql://…" npx prisma db push
-   DATABASE_URL="postgresql://…" npm run db:seed
-   ```
-4. Push this repo to GitHub and import it in Vercel.
-5. In Vercel → Project → Settings → Environment Variables, set:
-   - `DATABASE_URL` — your Postgres connection string
-   - (optional) `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-     `GOOGLE_REDIRECT_URI` (`https://YOUR-DOMAIN/api/gmail/callback`)
-6. Deploy. The build runs `prisma generate && next build` automatically.
+1. **Database** — sign up at [neon.tech](https://neon.tech), create a project,
+   and copy the **connection string** (`postgresql://…`).
+2. **Hosting** — sign up at [vercel.com](https://vercel.com) with GitHub, then
+   **Add New → Project** and import this repository.
+3. In the import screen, open **Environment Variables** and add:
+   - `DATABASE_URL` — the Neon connection string from step 1
+   - *(optional, for real Gmail)* `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+     `GOOGLE_REDIRECT_URI` = `https://YOUR-DOMAIN/api/gmail/callback`
+4. Click **Deploy**. In ~2 minutes you get a live URL.
 
-> `npm run db:push` uses the schema directly, so the SQLite migration files in
-> `prisma/migrations/` (which are SQLite-dialect) don't need to be replayed on
-> Postgres.
+Build settings are pre-configured in `vercel.json`, so there's nothing else to
+change.
 
 ## Notes
 

@@ -1,17 +1,16 @@
 // Prisma schema for Career Ops dashboard.
 //
-// Default provider is SQLite for zero-setup local development. To deploy on a
-// serverless host (e.g. Vercel) switch `provider` to "postgresql" and point
-// DATABASE_URL at a managed Postgres (Neon / Vercel Postgres / Supabase), then
-// run `npx prisma migrate deploy`. Enum-like fields are stored as strings so
-// the same schema works across both databases.
+// Uses Postgres. For local development point DATABASE_URL at a Postgres
+// instance (a free Neon database works for both local and production). The app
+// auto-creates tables (`prisma db push` on deploy) and seeds sample data on
+// first load. Enum-like fields are stored as strings.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
