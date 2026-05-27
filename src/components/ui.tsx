@@ -53,7 +53,9 @@ export function StatCard({
           <div className={`rounded-lg p-2 ${tones[tone]}`}>{icon}</div>
         )}
       </div>
-      <div className="mt-2 text-2xl font-bold text-neutral-900">{value}</div>
+      <div className="mt-2 text-3xl font-extrabold tracking-tight text-neutral-900">
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}
     </div>
   );

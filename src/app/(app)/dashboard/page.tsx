@@ -10,9 +10,10 @@ import {
   FileText,
   Trophy,
 } from "lucide-react";
+import { format } from "date-fns";
 import { useData } from "@/lib/store";
 import { isInRange } from "@/lib/dateRange";
-import { Card, PageHeader, StatCard } from "@/components/ui";
+import { Card, StatCard } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ago, minutesToHm, relative } from "@/lib/format";
 import { TimeEntry } from "@/lib/types";
@@ -57,10 +58,27 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title={`Welcome back, ${firstName}`}
-        subtitle="Your personal overview — applications, time, contracts and documents."
-      />
+      <div className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand via-[#5b46e0] to-accent-purple p-6 text-white shadow-card sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-white/70">
+              {format(now, "EEEE, MMMM d")}
+            </div>
+            <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl">
+              Welcome back, {firstName}
+            </h1>
+            <p className="mt-1 text-sm text-white/80">
+              Here&apos;s what&apos;s happening across your workspace.
+            </p>
+          </div>
+          <Link
+            href="/applications"
+            className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/25"
+          >
+            View applications
+          </Link>
+        </div>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
