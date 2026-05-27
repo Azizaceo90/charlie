@@ -2,14 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
+
 :root {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
 }
 
 html,
 body {
-  background: #f6f6f7;
-  color: #18181b;
+  background: #f6f7fb;
+  color: #323338;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -23,13 +27,13 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: #c3c6d4;
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b4b4bb;
+  background: #a9adbe;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
@@ -41,7 +45,7 @@ body {
     @apply rounded-xl border border-line bg-bg-card shadow-card;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
     @apply btn bg-brand text-white hover:bg-brand-dim;
@@ -53,12 +57,16 @@ body {
     @apply btn text-neutral-600 hover:bg-bg-hover;
   }
   .input {
-    @apply w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-shadow focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10;
+    @apply w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand/20;
   }
   .label {
     @apply mb-1.5 block text-xs font-medium text-neutral-500;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  /* monday-style filled status pill */
+  .pill {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold text-white;
   }
 }

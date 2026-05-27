@@ -15,7 +15,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900 sm:text-2xl">{title}</h1>
+        <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -37,23 +37,23 @@ export function StatCard({
   tone?: "brand" | "green" | "amber" | "blue" | "purple" | "red" | "teal";
 }) {
   const tones: Record<string, string> = {
-    brand: "text-brand-soft bg-brand/15",
-    green: "text-accent-green bg-accent-green/15",
-    amber: "text-accent-amber bg-accent-amber/15",
-    blue: "text-accent-blue bg-accent-blue/15",
-    purple: "text-accent-purple bg-accent-purple/15",
-    red: "text-accent-red bg-accent-red/15",
-    teal: "text-accent-teal bg-accent-teal/15",
+    brand: "bg-brand text-white",
+    green: "bg-accent-green text-white",
+    amber: "bg-accent-amber text-white",
+    blue: "bg-accent-blue text-white",
+    purple: "bg-accent-purple text-white",
+    red: "bg-accent-red text-white",
+    teal: "bg-accent-teal text-white",
   };
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between">
-        <div className="text-sm text-neutral-500">{label}</div>
+        <div className="text-sm font-medium text-neutral-500">{label}</div>
         {icon && (
-          <div className={`rounded-lg p-1.5 ${tones[tone]}`}>{icon}</div>
+          <div className={`rounded-lg p-2 ${tones[tone]}`}>{icon}</div>
         )}
       </div>
-      <div className="mt-2 text-2xl font-semibold text-neutral-900">{value}</div>
+      <div className="mt-2 text-2xl font-bold text-neutral-900">{value}</div>
       {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}
     </div>
   );

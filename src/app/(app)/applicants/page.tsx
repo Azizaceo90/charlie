@@ -8,13 +8,13 @@ import { Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
 import { ago } from "@/lib/format";
 
 const STAGES: { key: ApplicantStage; label: string; color: string }[] = [
-  { key: "applied", label: "Applied", color: "#a3a3a3" },
-  { key: "screening", label: "Screening", color: "#8a8a8a" },
-  { key: "assessment", label: "Assessment", color: "#737373" },
-  { key: "interview", label: "Interview", color: "#525252" },
-  { key: "offer", label: "Offer", color: "#27272a" },
-  { key: "hired", label: "Hired", color: "#111113" },
-  { key: "rejected", label: "Rejected", color: "#d4d4d4" },
+  { key: "applied", label: "Applied", color: "#579bfc" },
+  { key: "screening", label: "Screening", color: "#00d2d2" },
+  { key: "assessment", label: "Assessment", color: "#a25ddc" },
+  { key: "interview", label: "Interview", color: "#fdab3d" },
+  { key: "offer", label: "Offer", color: "#0073ea" },
+  { key: "hired", label: "Hired", color: "#00c875" },
+  { key: "rejected", label: "Rejected", color: "#e2445c" },
 ];
 
 export default function ApplicantsPage() {
@@ -94,14 +94,17 @@ export default function ApplicantsPage() {
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ background: stage.color }}
                 />
-                <span className="text-sm font-medium text-neutral-900">
+                <span className="text-sm font-bold" style={{ color: stage.color }}>
                   {stage.label}
                 </span>
-                <span className="ml-auto text-xs text-neutral-500">
+                <span className="ml-auto rounded-full bg-bg-soft px-2 py-0.5 text-xs font-semibold text-neutral-500">
                   {items.length}
                 </span>
               </div>
-              <div className="space-y-2 rounded-xl border border-line bg-bg-soft/50 p-2">
+              <div
+                className="space-y-2 rounded-xl border border-line bg-bg-card p-2"
+                style={{ borderTop: `3px solid ${stage.color}` }}
+              >
                 {items.length === 0 ? (
                   <div className="px-2 py-6 text-center text-xs text-neutral-400">
                     No candidates

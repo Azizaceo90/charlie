@@ -24,11 +24,11 @@ import RangeFilter from "@/components/RangeFilter";
 import { minutesToHm } from "@/lib/format";
 
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
-  applied: "#d4d4d4",
-  assessment: "#a3a3a3",
-  interview: "#737373",
-  offer: "#111113",
-  rejected: "#e5e5e5",
+  applied: "#579bfc",
+  assessment: "#a25ddc",
+  interview: "#fdab3d",
+  offer: "#00c875",
+  rejected: "#e2445c",
 };
 
 const tooltipStyle = {
@@ -155,8 +155,8 @@ export default function InsightsPage() {
             <AreaChart data={appsSeries} margin={{ left: -20, right: 8 }}>
               <defs>
                 <linearGradient id="appsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#111113" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#111113" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#0073ea" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="#0073ea" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#ececef" vertical={false} />
@@ -177,7 +177,7 @@ export default function InsightsPage() {
               <Area
                 type="monotone"
                 dataKey="Applications"
-                stroke="#111113"
+                stroke="#0073ea"
                 strokeWidth={2}
                 fill="url(#appsGrad)"
               />
@@ -289,7 +289,7 @@ export default function InsightsPage() {
                 tickLine={false}
               />
               <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#f2f2f4" }} />
-              <Bar dataKey="hours" fill="#111113" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="hours" fill="#00c875" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>

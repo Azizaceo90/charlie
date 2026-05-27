@@ -22,6 +22,28 @@ import RangeFilter from "@/components/RangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { relative } from "@/lib/format";
 
+const STATUS_ORDER: ApplicationStatus[] = [
+  "offer",
+  "interview",
+  "assessment",
+  "applied",
+  "rejected",
+];
+const STATUS_COLOR: Record<ApplicationStatus, string> = {
+  applied: "#579bfc",
+  assessment: "#a25ddc",
+  interview: "#fdab3d",
+  offer: "#00c875",
+  rejected: "#e2445c",
+};
+const STATUS_LABEL: Record<ApplicationStatus, string> = {
+  applied: "Applied",
+  assessment: "Assessment",
+  interview: "Interview",
+  offer: "Offer",
+  rejected: "Rejected",
+};
+
 export default function ApplicationsPage() {
   return (
     <Suspense
@@ -207,26 +229,43 @@ function ApplicationsInner() {
         />
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="border-b border-line px-5 py-3 text-sm font-medium text-neutral-900">
-          Activity
+      {filtered.length === 0 ? (
+        <div className="card p-6">
+          <EmptyState
+            icon={<Briefcase className="h-8 w-8" />}
+            title="No application activity in this range"
+            hint="Try a wider time range, sync your Gmail, or add an application manually."
+          />
         </div>
-        {filtered.length === 0 ? (
-          <div className="p-6">
-            <EmptyState
-              icon={<Briefcase className="h-8 w-8" />}
-              title="No application activity in this range"
-              hint="Try a wider time range, sync your Gmail, or add an application manually."
-            />
-          </div>
-        ) : (
-          <div className="divide-y divide-line">
-            {filtered.map((a) => (
-              <ApplicationRow key={a.id} app={a} />
-            ))}
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="space-y-5">
+          {STATUS_ORDER.map((status) => {
+            const items = filtered.filter((a) => a.status === status);
+            if (!items.length) return null;
+            const color = STATUS_COLOR[status];
+            return (
+              <div key={status} className="card overflow-hidden">
+                <div
+                  className="flex items-center gap-2 px-4 py-2.5"
+                  style={{ borderTop: `3px solid ${color}` }}
+                >
+                  <span className="text-sm font-bold" style={{ color }}>
+                    {STATUS_LABEL[status]}
+                  </span>
+                  <span className="rounded-full bg-bg-soft px-2 py-0.5 text-xs font-semibold text-neutral-500">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-line border-t border-line">
+                  {items.map((a) => (
+                    <ApplicationRow key={a.id} app={a} color={color} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-line bg-bg-card px-4 py-2.5 text-sm text-neutral-800 shadow-card">
@@ -240,10 +279,16 @@ function ApplicationsInner() {
   );
 }
 
-function ApplicationRow({ app }: { app: JobApplication }) {
+function ApplicationRow({ app, color }: { app: JobApplication; color: string }) {
   return (
-    <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover/50">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-soft text-sm font-semibold text-neutral-700">
+    <div
+      className="flex items-center gap-4 py-3.5 pr-5 pl-4 hover:bg-bg-hover/60"
+      style={{ borderLeft: `4px solid ${color}` }}
+    >
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+        style={{ backgroundColor: color }}
+      >
         {app.company.slice(0, 2).toUpperCase()}
       </div>
       <div className="min-w-0 flex-1">
