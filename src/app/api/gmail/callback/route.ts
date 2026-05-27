@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       /* email lookup is best-effort */
     }
 
-    writeTokens({ tokens: tokens as Record<string, unknown>, email });
+    await writeTokens({ tokens: tokens as Record<string, unknown>, email });
     return NextResponse.redirect(`${origin}/applications?gmail=connected`);
   } catch {
     return NextResponse.redirect(`${origin}/applications?gmail=error`);

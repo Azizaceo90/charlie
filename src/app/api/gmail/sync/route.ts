@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!isConnected()) {
+  if (!(await isConnected())) {
     return NextResponse.json({ error: "Gmail not connected" }, { status: 401 });
   }
   try {

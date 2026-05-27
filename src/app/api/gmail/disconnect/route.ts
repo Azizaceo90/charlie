@@ -5,6 +5,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  clearTokens();
+  await clearTokens();
   return NextResponse.json({ ok: true });
 }

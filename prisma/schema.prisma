@@ -86,6 +86,14 @@ model Applicant {
   location  String?
 }
 
+model GmailToken {
+  id         String    @id @default("default")
+  tokens     String // JSON-encoded OAuth credentials
+  email      String?
+  lastSynced DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
 model JobListing {
   id          String   @id @default(cuid())
   title       String

@@ -1,7 +1,6 @@
-import fs from "fs";
-import path from "path";
 import { google } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
+import { prisma } from "./prisma";
 import {
   classifyEmail,
   companyFromSender,
@@ -9,7 +8,7 @@ import {
 } from "./gmailClassify";
 import { JobApplication } from "./types";
 
-const TOKEN_PATH = path.join(process.cwd(), ".gmail-tokens.json");
+const TOKEN_ID = "default";
 
 export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
@@ -32,35 +31,53 @@ export function oauthClient(): OAuth2Client {
   );
 }
 
-interface StoredTokens {
+export interface StoredTokens {
   tokens: Record<string, unknown>;
   email?: string;
   lastSynced?: string;
 }
 
-export function readTokens(): StoredTokens | null {
+export async function readTokens(): Promise<StoredTokens | null> {
   try {
-    if (!fs.existsSync(TOKEN_PATH)) return null;
-    return JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8")) as StoredTokens;
+    const row = await prisma.gmailToken.findUnique({ where: { id: TOKEN_ID } });
+    if (!row) return null;
+    return {
+      tokens: JSON.parse(row.tokens) as Record<string, unknown>,
+      email: row.email ?? undefined,
+      lastSynced: row.lastSynced?.toISOString(),
+    };
   } catch {
     return null;
   }
 }
 
-export function writeTokens(data: StoredTokens) {
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(data, null, 2), "utf8");
+export async function writeTokens(data: StoredTokens) {
+  await prisma.gmailToken.upsert({
+    where: { id: TOKEN_ID },
+    create: {
+      id: TOKEN_ID,
+      tokens: JSON.stringify(data.tokens),
+      email: data.email,
+      lastSynced: data.lastSynced ? new Date(data.lastSynced) : null,
+    },
+    update: {
+      tokens: JSON.stringify(data.tokens),
+      email: data.email,
+      lastSynced: data.lastSynced ? new Date(data.lastSynced) : undefined,
+    },
+  });
 }
 
-export function clearTokens() {
+export async function clearTokens() {
   try {
-    if (fs.existsSync(TOKEN_PATH)) fs.unlinkSync(TOKEN_PATH);
+    await prisma.gmailToken.deleteMany({ where: { id: TOKEN_ID } });
   } catch {
     /* ignore */
   }
 }
 
-export function isConnected(): boolean {
-  return readTokens() !== null;
+export async function isConnected(): Promise<boolean> {
+  return (await readTokens()) !== null;
 }
 
 export function authUrl(): string {
@@ -72,7 +89,10 @@ export function authUrl(): string {
   });
 }
 
-function header(headers: { name?: string | null; value?: string | null }[] | undefined, name: string): string {
+function header(
+  headers: { name?: string | null; value?: string | null }[] | undefined,
+  name: string
+): string {
   const h = headers?.find((x) => x.name?.toLowerCase() === name.toLowerCase());
   return h?.value ?? "";
 }
@@ -82,7 +102,7 @@ function header(headers: { name?: string | null; value?: string | null }[] | und
  * a de-duplicated list of applications (most recent status per company+role).
  */
 export async function fetchApplications(): Promise<JobApplication[]> {
-  const stored = readTokens();
+  const stored = await readTokens();
   if (!stored) throw new Error("Gmail not connected");
 
   const client = oauthClient();
@@ -149,8 +169,7 @@ export async function fetchApplications(): Promise<JobApplication[]> {
     }
   }
 
-  // persist lastSynced
-  writeTokens({ ...stored, lastSynced: new Date().toISOString() });
+  await writeTokens({ ...stored, lastSynced: new Date().toISOString() });
 
   return Array.from(byKey.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
 }
