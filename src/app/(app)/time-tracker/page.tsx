@@ -106,18 +106,18 @@ export default function TimeTrackerPage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
-          <div className="text-sm text-slate-400">
+          <div className="text-sm text-neutral-500">
             {active ? "Currently tracking" : "Not tracking"}
           </div>
           <div
             className={`mt-2 font-mono text-4xl font-semibold tabular-nums ${
-              active ? "text-accent-green" : "text-white"
+              active ? "text-accent-green" : "text-neutral-900"
             }`}
           >
             {fmtClock(elapsed)}
           </div>
           {active && (
-            <div className="mt-1 text-xs text-slate-500">
+            <div className="mt-1 text-xs text-neutral-500">
               {active.project} · since {timeOnly(active.clockIn)}
             </div>
           )}
@@ -151,7 +151,7 @@ export default function TimeTrackerPage() {
           <div className="mt-4">
             {active ? (
               <button
-                className="btn w-full bg-accent-red text-white hover:bg-accent-red/80"
+                className="btn w-full bg-brand text-white hover:bg-brand-dim"
                 onClick={clockOut}
               >
                 <Square className="h-4 w-4" /> Clock out
@@ -178,7 +178,7 @@ export default function TimeTrackerPage() {
             icon={<Clock className="h-4 w-4" />}
           />
           <div className="col-span-2 card p-5">
-            <div className="mb-3 text-sm font-medium text-white">
+            <div className="mb-3 text-sm font-medium text-neutral-900">
               Hours by project (7 days)
             </div>
             <ProjectBars entries={myEntries} now={tick} />
@@ -187,7 +187,7 @@ export default function TimeTrackerPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-white">Entries</h2>
+        <h2 className="text-sm font-medium text-neutral-900">Entries</h2>
         <RangeFilter value={range} onChange={setRange} />
       </div>
 
@@ -207,25 +207,25 @@ export default function TimeTrackerPage() {
                 key={e.id}
                 className="flex items-center gap-4 px-5 py-3 hover:bg-bg-hover/50"
               >
-                <div className="w-24 shrink-0 text-xs text-slate-500">
+                <div className="w-24 shrink-0 text-xs text-neutral-500">
                   {dateOnly(e.clockIn)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-sm font-medium text-neutral-900">
                     {e.project ?? "Untitled"}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-neutral-500">
                     {timeOnly(e.clockIn)} –{" "}
                     {e.clockOut ? timeOnly(e.clockOut) : "running"}
                     {e.note ? ` · ${e.note}` : ""}
                   </div>
                 </div>
-                <div className="text-sm font-medium tabular-nums text-slate-200">
+                <div className="text-sm font-medium tabular-nums text-neutral-800">
                   {e.clockOut ? minutesToHm(entryMinutes(e, tick)) : "—"}
                 </div>
                 <button
                   onClick={() => remove(e.id)}
-                  className="rounded-md p-1.5 text-slate-500 hover:bg-bg-hover hover:text-accent-red"
+                  className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-hover hover:text-accent-red"
                   title="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -258,13 +258,13 @@ function ProjectBars({ entries, now }: { entries: TimeEntry[]; now: number }) {
 
   const max = Math.max(1, ...totals.map(([, m]) => m));
   if (totals.length === 0)
-    return <p className="text-sm text-slate-500">No hours logged this week.</p>;
+    return <p className="text-sm text-neutral-500">No hours logged this week.</p>;
 
   return (
     <div className="space-y-2.5">
       {totals.map(([project, mins]) => (
         <div key={project} className="flex items-center gap-3">
-          <div className="w-32 shrink-0 truncate text-xs text-slate-400">
+          <div className="w-32 shrink-0 truncate text-xs text-neutral-500">
             {project}
           </div>
           <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-bg-soft">
@@ -273,7 +273,7 @@ function ProjectBars({ entries, now }: { entries: TimeEntry[]; now: number }) {
               style={{ width: `${(mins / max) * 100}%` }}
             />
           </div>
-          <div className="w-14 shrink-0 text-right text-xs tabular-nums text-slate-300">
+          <div className="w-14 shrink-0 text-right text-xs tabular-nums text-neutral-700">
             {minutesToHm(mins)}
           </div>
         </div>

@@ -73,7 +73,7 @@ export default function ContractsPage() {
       {pendingCount > 0 && (
         <div className="mb-5 flex items-center gap-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-4 py-3 text-sm">
           <Clock className="h-5 w-5 text-accent-amber" />
-          <span className="text-slate-200">
+          <span className="text-neutral-800">
             {pendingCount} contract{pendingCount === 1 ? "" : "s"} awaiting
             signature.
           </span>
@@ -113,10 +113,10 @@ export default function ContractsPage() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-white">
+                  <div className="truncate text-sm font-medium text-neutral-900">
                     {c.title}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-neutral-500">
                     {isAdmin ? c.assignedToName : "Assigned to you"} ·{" "}
                     {c.status === "signed"
                       ? `signed ${ago(c.signedAt!)}`
@@ -142,10 +142,10 @@ export default function ContractsPage() {
             <Card className="p-4">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">
+                  <div className="text-sm font-semibold text-neutral-900">
                     {selected.title}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-neutral-500">
                     For {selected.assignedToName} · issued{" "}
                     {dateOnly(selected.issuedAt)}
                   </div>
@@ -165,7 +165,7 @@ export default function ContractsPage() {
 
               {selected.status === "signed" ? (
                 <div className="mt-4 rounded-lg border border-line bg-bg-soft p-4">
-                  <div className="mb-2 text-xs font-medium text-slate-400">
+                  <div className="mb-2 text-xs font-medium text-neutral-500">
                     Signature
                   </div>
                   <div className="flex items-center gap-4">
@@ -177,8 +177,8 @@ export default function ContractsPage() {
                         className="h-16 rounded bg-white px-2"
                       />
                     )}
-                    <div className="text-xs text-slate-400">
-                      <div className="font-medium text-slate-200">
+                    <div className="text-xs text-neutral-500">
+                      <div className="font-medium text-neutral-800">
                         {selected.signerName}
                       </div>
                       <div>Signed {dateOnly(selected.signedAt!)}</div>
@@ -188,7 +188,7 @@ export default function ContractsPage() {
               ) : canSign ? (
                 <SignPanel onSign={sign} contractTitle={selected.title} />
               ) : (
-                <div className="mt-4 rounded-lg border border-line bg-bg-soft px-4 py-3 text-sm text-slate-400">
+                <div className="mt-4 rounded-lg border border-line bg-bg-soft px-4 py-3 text-sm text-neutral-500">
                   {isAdmin
                     ? "Awaiting the employee's signature."
                     : "This contract is awaiting signature."}
@@ -232,11 +232,11 @@ function SignPanel({
 
   return (
     <div className="mt-4 rounded-lg border border-brand/30 bg-brand/5 p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-white">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-neutral-900">
         <PenLine className="h-4 w-4 text-brand-soft" /> Sign this contract
       </div>
       <SignaturePad onChange={setSignature} />
-      <label className="mt-3 flex items-start gap-2 text-xs text-slate-300">
+      <label className="mt-3 flex items-start gap-2 text-xs text-neutral-700">
         <input
           type="checkbox"
           checked={agreed}
@@ -342,7 +342,7 @@ function IssueModal({
             type="file"
             accept="application/pdf"
             onChange={onFile}
-            className="block w-full text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-dim"
+            className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-dim"
           />
           {fileName && (
             <p className="mt-1.5 text-xs text-accent-green">Loaded {fileName}</p>

@@ -98,7 +98,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <h2 className="text-sm font-medium text-white">
+            <h2 className="text-sm font-medium text-neutral-900">
               Recent application activity
             </h2>
             <Link
@@ -114,18 +114,18 @@ export default function DashboardPage() {
                 key={a.id}
                 className="flex items-center gap-3 px-5 py-3 hover:bg-bg-hover/50"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-bg-soft text-xs font-semibold text-slate-300">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-bg-soft text-xs font-semibold text-neutral-700">
                   {a.company.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-white">
+                  <div className="truncate text-sm font-medium text-neutral-900">
                     {a.company}
                   </div>
-                  <div className="truncate text-xs text-slate-400">
+                  <div className="truncate text-xs text-neutral-500">
                     {a.role}
                   </div>
                 </div>
-                <span className="hidden text-xs text-slate-500 sm:block">
+                <span className="hidden text-xs text-neutral-500 sm:block">
                   {relative(a.date)}
                 </span>
                 <StatusBadge status={a.status} />
@@ -136,13 +136,13 @@ export default function DashboardPage() {
 
         <div className="space-y-6">
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-medium text-white">
+            <h2 className="mb-3 text-sm font-medium text-neutral-900">
               {myPendingContracts.length
                 ? "Contracts awaiting your signature"
                 : "Contracts"}
             </h2>
             {myPendingContracts.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-neutral-500">
                 Nothing to sign right now.
               </p>
             ) : (
@@ -155,14 +155,14 @@ export default function DashboardPage() {
                   >
                     <FileSignature className="h-4 w-4 text-accent-amber" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-white">
+                      <div className="truncate text-sm text-neutral-900">
                         {c.title}
                       </div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-[11px] text-neutral-500">
                         Issued {ago(c.issuedAt)}
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-slate-500" />
+                    <ArrowRight className="h-4 w-4 text-neutral-500" />
                   </Link>
                 ))}
               </div>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-medium text-white">Quick links</h2>
+            <h2 className="mb-3 text-sm font-medium text-neutral-900">Quick links</h2>
             <div className="grid grid-cols-2 gap-2">
               <QuickLink href="/time-tracker" icon={<Clock className="h-4 w-4" />}>
                 Track time
@@ -204,7 +204,7 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 rounded-lg border border-line bg-bg-soft px-3 py-2.5 text-sm text-slate-300 hover:bg-bg-hover hover:text-white"
+      className="flex items-center gap-2 rounded-lg border border-line bg-bg-soft px-3 py-2.5 text-sm text-neutral-700 hover:bg-bg-hover hover:text-neutral-900"
     >
       <span className="text-brand-soft">{icon}</span>
       {children}

@@ -18,7 +18,7 @@ export default function RangeFilter({
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.key
               ? "bg-brand text-white"
-              : "text-slate-400 hover:bg-bg-hover hover:text-slate-200"
+              : "text-neutral-500 hover:bg-bg-hover hover:text-neutral-800"
           }`}
         >
           {opt.label}

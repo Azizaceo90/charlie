@@ -23,8 +23,8 @@ export default function MobileNav() {
               href={item.href}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
                 active
-                  ? "bg-brand/15 text-white"
-                  : "text-slate-400 hover:bg-bg-hover"
+                  ? "bg-brand/15 text-neutral-900"
+                  : "text-neutral-500 hover:bg-bg-hover"
               }`}
             >
               <Icon className="h-4 w-4" />

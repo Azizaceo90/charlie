@@ -25,15 +25,15 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand">
             <LayoutDashboard className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-semibold text-white">Career Ops</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="text-2xl font-semibold text-neutral-900">Career Ops</h1>
+          <p className="mt-1 text-sm text-neutral-500">
             Choose a profile to sign in
           </p>
         </div>
 
         <div className="space-y-3">
           {!ready && (
-            <div className="py-8 text-center text-sm text-slate-500">
+            <div className="py-8 text-center text-sm text-neutral-500">
               Loading profiles…
             </div>
           )}
@@ -43,18 +43,15 @@ export default function LoginPage() {
               onClick={() => signIn(u.id)}
               className="card flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-bg-hover"
             >
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold text-white"
-                style={{ backgroundColor: u.avatarColor ?? "#6366f1" }}
-              >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
                 {u.name
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
               </div>
               <div className="flex-1">
-                <div className="font-medium text-white">{u.name}</div>
-                <div className="text-xs text-slate-400">{u.title}</div>
+                <div className="font-medium text-neutral-900">{u.name}</div>
+                <div className="text-xs text-neutral-500">{u.title}</div>
               </div>
               <span
                 className={`chip ${
@@ -74,7 +71,7 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-neutral-500">
           Prototype sign-in. No password required — pick admin to manage
           everything, or an employee to see their individual view.
         </p>

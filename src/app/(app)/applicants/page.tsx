@@ -8,13 +8,13 @@ import { Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
 import { ago } from "@/lib/format";
 
 const STAGES: { key: ApplicantStage; label: string; color: string }[] = [
-  { key: "applied", label: "Applied", color: "#3b82f6" },
-  { key: "screening", label: "Screening", color: "#14b8a6" },
-  { key: "assessment", label: "Assessment", color: "#a855f7" },
-  { key: "interview", label: "Interview", color: "#f59e0b" },
-  { key: "offer", label: "Offer", color: "#6366f1" },
-  { key: "hired", label: "Hired", color: "#22c55e" },
-  { key: "rejected", label: "Rejected", color: "#64748b" },
+  { key: "applied", label: "Applied", color: "#a3a3a3" },
+  { key: "screening", label: "Screening", color: "#8a8a8a" },
+  { key: "assessment", label: "Assessment", color: "#737373" },
+  { key: "interview", label: "Interview", color: "#525252" },
+  { key: "offer", label: "Offer", color: "#27272a" },
+  { key: "hired", label: "Hired", color: "#111113" },
+  { key: "rejected", label: "Rejected", color: "#d4d4d4" },
 ];
 
 export default function ApplicantsPage() {
@@ -75,7 +75,7 @@ export default function ApplicantsPage() {
       </div>
 
       <div className="mb-5 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
         <input
           className="input pl-9"
           placeholder="Search applicants"
@@ -94,16 +94,16 @@ export default function ApplicantsPage() {
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ background: stage.color }}
                 />
-                <span className="text-sm font-medium text-white">
+                <span className="text-sm font-medium text-neutral-900">
                   {stage.label}
                 </span>
-                <span className="ml-auto text-xs text-slate-500">
+                <span className="ml-auto text-xs text-neutral-500">
                   {items.length}
                 </span>
               </div>
               <div className="space-y-2 rounded-xl border border-line bg-bg-soft/50 p-2">
                 {items.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-xs text-slate-600">
+                  <div className="px-2 py-6 text-center text-xs text-neutral-400">
                     No candidates
                   </div>
                 ) : (
@@ -141,10 +141,10 @@ function ApplicantCard({
     <div className="card p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-white">
+          <div className="truncate text-sm font-medium text-neutral-900">
             {applicant.name}
           </div>
-          <div className="truncate text-xs text-slate-400">
+          <div className="truncate text-xs text-neutral-500">
             {applicant.role}
           </div>
         </div>
@@ -155,14 +155,14 @@ function ApplicantCard({
           </div>
         ) : null}
       </div>
-      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="mt-2 flex items-center justify-between text-[11px] text-neutral-500">
         <span className="truncate">{applicant.location ?? "—"}</span>
         <span>{ago(applicant.appliedAt)}</span>
       </div>
       <select
         value={applicant.stage}
         onChange={(e) => onMove(e.target.value as ApplicantStage)}
-        className="mt-2 w-full rounded-md border border-line bg-bg-soft px-2 py-1 text-xs text-slate-300 outline-none focus:border-brand-soft"
+        className="mt-2 w-full rounded-md border border-line bg-bg-soft px-2 py-1 text-xs text-neutral-700 outline-none focus:border-brand-soft"
       >
         {STAGES.map((s) => (
           <option key={s.key} value={s.key}>

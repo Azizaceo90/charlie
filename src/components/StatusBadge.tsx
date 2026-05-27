@@ -1,11 +1,11 @@
 import { ApplicantStage, ApplicationStatus } from "@/lib/types";
 
 const APP_STYLES: Record<ApplicationStatus, string> = {
-  applied: "bg-accent-blue/15 text-accent-blue",
-  assessment: "bg-accent-purple/15 text-accent-purple",
-  interview: "bg-accent-amber/15 text-accent-amber",
-  offer: "bg-accent-green/15 text-accent-green",
-  rejected: "bg-slate-500/15 text-slate-400",
+  applied: "bg-neutral-100 text-neutral-600",
+  assessment: "bg-neutral-200 text-neutral-700",
+  interview: "bg-neutral-200 text-neutral-900",
+  offer: "bg-neutral-900 text-white",
+  rejected: "bg-neutral-100 text-neutral-400",
 };
 
 const APP_LABELS: Record<ApplicationStatus, string> = {
@@ -23,13 +23,13 @@ export function StatusBadge({ status }: { status: ApplicationStatus }) {
 }
 
 const STAGE_STYLES: Record<ApplicantStage, string> = {
-  applied: "bg-accent-blue/15 text-accent-blue",
-  screening: "bg-accent-teal/15 text-accent-teal",
-  assessment: "bg-accent-purple/15 text-accent-purple",
-  interview: "bg-accent-amber/15 text-accent-amber",
-  offer: "bg-brand/15 text-brand-soft",
-  hired: "bg-accent-green/15 text-accent-green",
-  rejected: "bg-slate-500/15 text-slate-400",
+  applied: "bg-neutral-100 text-neutral-600",
+  screening: "bg-neutral-100 text-neutral-700",
+  assessment: "bg-neutral-200 text-neutral-700",
+  interview: "bg-neutral-200 text-neutral-900",
+  offer: "bg-neutral-800 text-white",
+  hired: "bg-neutral-900 text-white",
+  rejected: "bg-neutral-100 text-neutral-400",
 };
 
 export function StageBadge({ stage }: { stage: ApplicantStage }) {

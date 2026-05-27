@@ -26,7 +26,7 @@ export default function ApplicationsPage() {
   return (
     <Suspense
       fallback={
-        <div className="text-sm text-slate-500">Loading applications…</div>
+        <div className="text-sm text-neutral-500">Loading applications…</div>
       }
     >
       <ApplicationsInner />
@@ -175,7 +175,7 @@ function ApplicationsInner() {
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <RangeFilter value={range} onChange={setRange} />
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-neutral-500">
           {filtered.length} update{filtered.length === 1 ? "" : "s"} in range
         </span>
       </div>
@@ -208,7 +208,7 @@ function ApplicationsInner() {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="border-b border-line px-5 py-3 text-sm font-medium text-white">
+        <div className="border-b border-line px-5 py-3 text-sm font-medium text-neutral-900">
           Activity
         </div>
         {filtered.length === 0 ? (
@@ -229,7 +229,7 @@ function ApplicationsInner() {
       </div>
 
       {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-line bg-bg-card px-4 py-2.5 text-sm text-slate-200 shadow-card">
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-line bg-bg-card px-4 py-2.5 text-sm text-neutral-800 shadow-card">
           {toast}
         </div>
       )}
@@ -243,24 +243,24 @@ function ApplicationsInner() {
 function ApplicationRow({ app }: { app: JobApplication }) {
   return (
     <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg-hover/50">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-soft text-sm font-semibold text-slate-300">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-bg-soft text-sm font-semibold text-neutral-700">
         {app.company.slice(0, 2).toUpperCase()}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-white">{app.company}</span>
+          <span className="truncate font-medium text-neutral-900">{app.company}</span>
           {app.source === "gmail" && (
-            <Mail className="h-3 w-3 shrink-0 text-slate-500" />
+            <Mail className="h-3 w-3 shrink-0 text-neutral-500" />
           )}
         </div>
-        <div className="truncate text-xs text-slate-400">{app.role}</div>
+        <div className="truncate text-xs text-neutral-500">{app.role}</div>
         {app.emailSubject && (
-          <div className="mt-0.5 truncate text-[11px] text-slate-600">
+          <div className="mt-0.5 truncate text-[11px] text-neutral-400">
             {app.emailSubject}
           </div>
         )}
       </div>
-      <div className="hidden text-right text-xs text-slate-500 sm:block">
+      <div className="hidden text-right text-xs text-neutral-500 sm:block">
         {relative(app.date)}
       </div>
       <StatusBadge status={app.status} />
@@ -281,11 +281,11 @@ function GmailBanner({
     return (
       <div className="mb-5 flex items-center gap-3 rounded-lg border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm">
         <CheckCircle2 className="h-5 w-5 shrink-0 text-accent-green" />
-        <span className="text-slate-200">
+        <span className="text-neutral-800">
           Gmail connected{gmail.email ? ` as ${gmail.email}` : ""}.
         </span>
         {gmail.lastSynced && (
-          <span className="ml-auto text-xs text-slate-500">
+          <span className="ml-auto text-xs text-neutral-500">
             Last synced {relative(gmail.lastSynced)}
           </span>
         )}
@@ -295,7 +295,7 @@ function GmailBanner({
   return (
     <div className="mb-5 flex flex-col gap-3 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-sm sm:flex-row sm:items-center">
       <Mail className="h-5 w-5 shrink-0 text-brand-soft" />
-      <span className="text-slate-200">
+      <span className="text-neutral-800">
         Showing <strong>sample data</strong>. Connect Gmail to track your real
         applications automatically.
       </span>
@@ -320,14 +320,14 @@ function GmailHelpModal({
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Connect Gmail">
-      <div className="space-y-3 text-sm text-slate-300">
+      <div className="space-y-3 text-sm text-neutral-700">
         <p>
           The tracker reads your inbox and automatically detects job-search
           emails — application confirmations, interview invites, assessments and
           offers — then groups them by company.
         </p>
-        <p className="font-medium text-white">To enable it:</p>
-        <ol className="list-decimal space-y-1.5 pl-5 text-slate-400">
+        <p className="font-medium text-neutral-900">To enable it:</p>
+        <ol className="list-decimal space-y-1.5 pl-5 text-neutral-500">
           <li>
             Create a project at{" "}
             <span className="text-brand-soft">console.cloud.google.com</span>.
@@ -345,7 +345,7 @@ function GmailHelpModal({
             <code>.env.example</code>) and restart.
           </li>
         </ol>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-neutral-500">
           Until configured, the dashboard runs on realistic sample data so you
           can explore every feature.
         </p>

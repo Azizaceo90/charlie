@@ -16,14 +16,14 @@ export default function Sidebar() {
   const groups = ["Personal", "Workspace"] as const;
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-bg-soft md:flex">
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-bg-card md:flex">
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand">
           <LayoutDashboard className="h-5 w-5 text-white" />
         </div>
         <div>
-          <div className="text-sm font-semibold text-white">Career Ops</div>
-          <div className="text-[11px] text-slate-500">JCAT Media LLC</div>
+          <div className="text-sm font-semibold text-neutral-900">Career Ops</div>
+          <div className="text-[11px] text-neutral-500">JCAT Media LLC</div>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export default function Sidebar() {
           if (!groupItems.length) return null;
           return (
             <div key={group}>
-              <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
                 {group}
               </div>
               <div className="space-y-1">
@@ -48,8 +48,8 @@ export default function Sidebar() {
                       href={item.href}
                       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                         active
-                          ? "bg-brand/15 text-white"
-                          : "text-slate-400 hover:bg-bg-hover hover:text-slate-200"
+                          ? "bg-brand/15 text-neutral-900"
+                          : "text-neutral-500 hover:bg-bg-hover hover:text-neutral-800"
                       }`}
                     >
                       <Icon
@@ -69,20 +69,17 @@ export default function Sidebar() {
 
       <div className="border-t border-line p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
-            style={{ backgroundColor: currentUser.avatarColor ?? "#6366f1" }}
-          >
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
             {currentUser.name
               .split(" ")
               .map((n) => n[0])
               .join("")}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-white">
+            <div className="truncate text-sm font-medium text-neutral-900">
               {currentUser.name}
             </div>
-            <div className="truncate text-[11px] capitalize text-slate-500">
+            <div className="truncate text-[11px] capitalize text-neutral-500">
               {currentUser.role}
             </div>
           </div>
@@ -91,7 +88,7 @@ export default function Sidebar() {
               logout();
               router.replace("/login");
             }}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-bg-hover hover:text-white"
+            className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />

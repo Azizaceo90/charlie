@@ -24,19 +24,20 @@ import RangeFilter from "@/components/RangeFilter";
 import { minutesToHm } from "@/lib/format";
 
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
-  applied: "#3b82f6",
-  assessment: "#a855f7",
-  interview: "#f59e0b",
-  offer: "#22c55e",
-  rejected: "#64748b",
+  applied: "#d4d4d4",
+  assessment: "#a3a3a3",
+  interview: "#737373",
+  offer: "#111113",
+  rejected: "#e5e5e5",
 };
 
 const tooltipStyle = {
-  background: "#141b2d",
-  border: "1px solid #232c44",
+  background: "#ffffff",
+  border: "1px solid #e5e5e8",
   borderRadius: 8,
   fontSize: 12,
-  color: "#e6e9f2",
+  color: "#18181b",
+  boxShadow: "0 10px 30px rgba(16,24,40,0.10)",
 };
 
 function entryMinutes(e: TimeEntry): number {
@@ -147,36 +148,36 @@ export default function InsightsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-medium text-white">
+          <h2 className="mb-4 text-sm font-medium text-neutral-900">
             Applications over time
           </h2>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={appsSeries} margin={{ left: -20, right: 8 }}>
               <defs>
                 <linearGradient id="appsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#111113" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="#111113" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#232c44" vertical={false} />
+              <CartesianGrid stroke="#ececef" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={{ fill: "#a1a1aa", fontSize: 11 }}
                 tickLine={false}
-                axisLine={{ stroke: "#232c44" }}
+                axisLine={{ stroke: "#ececef" }}
                 minTickGap={24}
               />
               <YAxis
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={{ fill: "#a1a1aa", fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 allowDecimals={false}
               />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#334155" }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#d4d4d8" }} />
               <Area
                 type="monotone"
                 dataKey="Applications"
-                stroke="#818cf8"
+                stroke="#111113"
                 strokeWidth={2}
                 fill="url(#appsGrad)"
               />
@@ -185,11 +186,11 @@ export default function InsightsPage() {
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-4 text-sm font-medium text-white">
+          <h2 className="mb-4 text-sm font-medium text-neutral-900">
             Status breakdown
           </h2>
           {statusData.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-500">
+            <p className="py-10 text-center text-sm text-neutral-500">
               No data in range.
             </p>
           ) : (
@@ -208,7 +209,7 @@ export default function InsightsPage() {
                       <Cell
                         key={d.status}
                         fill={STATUS_COLORS[d.status]}
-                        stroke="#0b0f1a"
+                        stroke="#ffffff"
                       />
                     ))}
                   </Pie>
@@ -225,8 +226,8 @@ export default function InsightsPage() {
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ background: STATUS_COLORS[d.status] }}
                     />
-                    <span className="text-slate-400">{d.name}</span>
-                    <span className="ml-auto font-medium text-slate-200">
+                    <span className="text-neutral-500">{d.name}</span>
+                    <span className="ml-auto font-medium text-neutral-800">
                       {d.value}
                     </span>
                   </div>
@@ -237,15 +238,15 @@ export default function InsightsPage() {
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-4 text-sm font-medium text-white">
+          <h2 className="mb-4 text-sm font-medium text-neutral-900">
             Pipeline funnel
           </h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={funnel} layout="vertical" margin={{ left: 8 }}>
-              <CartesianGrid stroke="#232c44" horizontal={false} />
+              <CartesianGrid stroke="#ececef" horizontal={false} />
               <XAxis
                 type="number"
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={{ fill: "#a1a1aa", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
@@ -258,7 +259,7 @@ export default function InsightsPage() {
                 tickLine={false}
                 width={72}
               />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#1b2440" }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#f2f2f4" }} />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {funnel.map((f) => (
                   <Cell key={f.stage} fill={f.fill} />
@@ -269,26 +270,26 @@ export default function InsightsPage() {
         </Card>
 
         <Card className="p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-medium text-white">
+          <h2 className="mb-4 text-sm font-medium text-neutral-900">
             Hours tracked per day
           </h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={timeSeries} margin={{ left: -20, right: 8 }}>
-              <CartesianGrid stroke="#232c44" vertical={false} />
+              <CartesianGrid stroke="#ececef" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "#64748b", fontSize: 11 }}
-                axisLine={{ stroke: "#232c44" }}
+                tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                axisLine={{ stroke: "#ececef" }}
                 tickLine={false}
                 minTickGap={24}
               />
               <YAxis
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={{ fill: "#a1a1aa", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#1b2440" }} />
-              <Bar dataKey="hours" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#f2f2f4" }} />
+              <Bar dataKey="hours" fill="#111113" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -300,8 +301,8 @@ export default function InsightsPage() {
 function Mini({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="card p-4">
-      <div className="text-sm text-slate-400">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-white">{value}</div>
+      <div className="text-sm text-neutral-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-neutral-900">{value}</div>
     </div>
   );
 }

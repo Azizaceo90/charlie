@@ -23,13 +23,13 @@ export default function PdfViewer({
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-bg-soft">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <span className="truncate text-xs text-slate-400">
+        <span className="truncate text-xs text-neutral-500">
           {fileName ?? "document.pdf"}
         </span>
         <div className="flex items-center gap-1">
           <button
             onClick={openInTab}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-bg-hover hover:text-white"
+            className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
             title="Open in new tab"
           >
             <ExternalLink className="h-4 w-4" />
@@ -37,7 +37,7 @@ export default function PdfViewer({
           <a
             href={dataUrl}
             download={fileName ?? "document.pdf"}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-bg-hover hover:text-white"
+            className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
             title="Download"
           >
             <Download className="h-4 w-4" />

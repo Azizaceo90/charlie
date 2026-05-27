@@ -85,7 +85,7 @@ export default function SignaturePad({
           className="h-40 w-full touch-none"
         />
         {!hasInk && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-neutral-500">
             Sign here
           </div>
         )}

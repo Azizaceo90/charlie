@@ -8,9 +8,10 @@
 
 html,
 body {
-  background: #0b0f1a;
-  color: #e6e9f2;
+  background: #f6f6f7;
+  color: #18181b;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -22,8 +23,14 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232c44;
+  background: #d4d4d8;
   border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b4b4bb;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -40,16 +47,16 @@ body {
     @apply btn bg-brand text-white hover:bg-brand-dim;
   }
   .btn-ghost {
-    @apply btn border border-line bg-bg-soft text-slate-200 hover:bg-bg-hover;
+    @apply btn border border-line bg-bg-card text-neutral-700 hover:bg-bg-hover;
   }
   .btn-subtle {
-    @apply btn text-slate-300 hover:bg-bg-hover;
+    @apply btn text-neutral-600 hover:bg-bg-hover;
   }
   .input {
-    @apply w-full rounded-lg border border-line bg-bg-soft px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-brand-soft;
+    @apply w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-shadow focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10;
   }
   .label {
-    @apply mb-1.5 block text-xs font-medium text-slate-400;
+    @apply mb-1.5 block text-xs font-medium text-neutral-500;
   }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;

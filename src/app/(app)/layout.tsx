@@ -20,7 +20,7 @@ export default function AppLayout({
 
   if (!ready || !currentUser) {
     return (
-      <div className="flex h-screen items-center justify-center text-slate-500">
+      <div className="flex h-screen items-center justify-center text-neutral-500">
         Loading…
       </div>
     );

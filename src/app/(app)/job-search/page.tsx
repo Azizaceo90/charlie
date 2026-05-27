@@ -69,7 +69,7 @@ export default function JobSearchPage() {
       <Card className="mb-5 p-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
             <input
               className="input pl-9"
               placeholder="Search title, company, or location"
@@ -112,16 +112,16 @@ export default function JobSearchPage() {
           {filtered.map((l) => (
             <Card key={l.id} className="flex flex-col p-5">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-bg-soft text-sm font-semibold text-slate-300">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-bg-soft text-sm font-semibold text-neutral-700">
                   {l.company.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-white">{l.title}</div>
-                  <div className="text-sm text-slate-400">{l.company}</div>
+                  <div className="font-medium text-neutral-900">{l.title}</div>
+                  <div className="text-sm text-neutral-500">{l.company}</div>
                 </div>
                 <button
                   onClick={() => toggleSave(l)}
-                  className="rounded-md p-1.5 text-slate-400 hover:bg-bg-hover hover:text-brand-soft"
+                  className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-hover hover:text-brand-soft"
                   title={l.saved ? "Unsave" : "Save"}
                 >
                   {l.saved ? (
@@ -133,23 +133,23 @@ export default function JobSearchPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="chip bg-bg-soft text-slate-300">
+                <span className="chip bg-bg-soft text-neutral-700">
                   <MapPin className="h-3 w-3" /> {l.location}
                 </span>
-                <span className="chip bg-bg-soft text-slate-300">{l.type}</span>
+                <span className="chip bg-bg-soft text-neutral-700">{l.type}</span>
                 {l.salary && (
-                  <span className="chip bg-bg-soft text-slate-300">
+                  <span className="chip bg-bg-soft text-neutral-700">
                     {l.salary}
                   </span>
                 )}
               </div>
 
-              <p className="mt-3 line-clamp-2 flex-1 text-sm text-slate-400">
+              <p className="mt-3 line-clamp-2 flex-1 text-sm text-neutral-500">
                 {l.description}
               </p>
 
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-neutral-500">
                   Posted {ago(l.postedAt)}
                 </span>
                 {l.applied ? (
@@ -183,7 +183,7 @@ function TabBtn({
     <button
       onClick={onClick}
       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-        active ? "bg-brand text-white" : "text-slate-400 hover:bg-bg-hover"
+        active ? "bg-brand text-white" : "text-neutral-500 hover:bg-bg-hover"
       }`}
     >
       {children}

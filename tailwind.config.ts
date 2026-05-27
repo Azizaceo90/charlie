@@ -9,32 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Light, monochrome SaaS palette.
         bg: {
-          DEFAULT: "#0b0f1a",
-          soft: "#0f1524",
-          card: "#141b2d",
-          hover: "#1b2440",
+          DEFAULT: "#f6f6f7", // app canvas
+          soft: "#f2f2f4", // subtle tiles / inputs / tracks
+          card: "#ffffff", // cards, sidebar, surfaces
+          hover: "#ececef", // hover states
         },
-        line: "#232c44",
+        line: "#e5e5e8",
+        // "brand" = the black accent used for primary actions and emphasis.
         brand: {
-          DEFAULT: "#6366f1",
-          soft: "#818cf8",
-          dim: "#4338ca",
+          DEFAULT: "#111113",
+          soft: "#27272a",
+          dim: "#000000",
         },
+        // Kept for API compatibility; mapped to neutral grays for a B&W theme.
         accent: {
-          green: "#22c55e",
-          amber: "#f59e0b",
-          blue: "#3b82f6",
-          purple: "#a855f7",
-          red: "#ef4444",
-          teal: "#14b8a6",
+          green: "#3f3f46",
+          amber: "#52525b",
+          blue: "#3f3f46",
+          purple: "#52525b",
+          red: "#3f3f46",
+          teal: "#3f3f46",
         },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25)",
+        card: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)",
+        pop: "0 10px 30px rgba(16,24,40,0.10)",
       },
     },
   },

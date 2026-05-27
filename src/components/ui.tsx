@@ -15,8 +15,8 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-xl font-semibold text-white sm:text-2xl">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
+        <h1 className="text-xl font-semibold text-neutral-900 sm:text-2xl">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -48,13 +48,13 @@ export function StatCard({
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between">
-        <div className="text-sm text-slate-400">{label}</div>
+        <div className="text-sm text-neutral-500">{label}</div>
         {icon && (
           <div className={`rounded-lg p-1.5 ${tones[tone]}`}>{icon}</div>
         )}
       </div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+      <div className="mt-2 text-2xl font-semibold text-neutral-900">{value}</div>
+      {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}
     </div>
   );
 }
@@ -82,9 +82,9 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 py-12 text-center">
-      {icon && <div className="mb-3 text-slate-600">{icon}</div>}
-      <div className="text-sm font-medium text-slate-300">{title}</div>
-      {hint && <div className="mt-1 max-w-sm text-xs text-slate-500">{hint}</div>}
+      {icon && <div className="mb-3 text-neutral-400">{icon}</div>}
+      <div className="text-sm font-medium text-neutral-700">{title}</div>
+      {hint && <div className="mt-1 max-w-sm text-xs text-neutral-500">{hint}</div>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -120,10 +120,10 @@ export function Modal({
         } overflow-hidden`}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-bg-hover hover:text-white"
+            className="rounded-md p-1 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
           >
             <X className="h-4 w-4" />
           </button>

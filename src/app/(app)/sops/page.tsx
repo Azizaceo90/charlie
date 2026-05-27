@@ -56,7 +56,7 @@ export default function SopsPage() {
         <div>
           <Card className="mb-4 p-3">
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
               <input
                 className="input pl-9"
                 placeholder="Search SOPs"
@@ -72,7 +72,7 @@ export default function SopsPage() {
                   className={`rounded-md px-2.5 py-1 text-xs font-medium ${
                     category === c
                       ? "bg-brand text-white"
-                      : "bg-bg-soft text-slate-400 hover:bg-bg-hover"
+                      : "bg-bg-soft text-neutral-500 hover:bg-bg-hover"
                   }`}
                 >
                   {c}
@@ -103,10 +103,10 @@ export default function SopsPage() {
                     <FileText className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-white">
+                    <div className="truncate text-sm font-medium text-neutral-900">
                       {s.title}
                     </div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-[11px] text-neutral-500">
                       {s.category} · {ago(s.uploadedAt)}
                     </div>
                   </div>
@@ -123,7 +123,7 @@ export default function SopsPage() {
                         remove(s.id);
                       }
                     }}
-                    className="rounded-md p-1.5 text-slate-500 hover:bg-bg-card hover:text-accent-red"
+                    className="rounded-md p-1.5 text-neutral-500 hover:bg-bg-card hover:text-accent-red"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -138,10 +138,10 @@ export default function SopsPage() {
           {selected ? (
             <Card className="p-4">
               <div className="mb-3">
-                <div className="text-sm font-semibold text-white">
+                <div className="text-sm font-semibold text-neutral-900">
                   {selected.title}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-neutral-500">
                   {selected.category} · Uploaded by {selected.uploadedBy} ·{" "}
                   {ago(selected.uploadedAt)}
                 </div>
@@ -258,7 +258,7 @@ function UploadModal({
             type="file"
             accept="application/pdf"
             onChange={onFile}
-            className="block w-full text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-dim"
+            className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-dim"
           />
           {fileName && (
             <p className="mt-1.5 text-xs text-accent-green">Loaded {fileName}</p>
