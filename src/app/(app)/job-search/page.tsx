@@ -5,15 +5,17 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
+  Copy,
   ExternalLink,
   Loader2,
   MapPin,
   Search,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import { JobListing } from "@/lib/types";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, Modal, PageHeader } from "@/components/ui";
 import { ago } from "@/lib/format";
 
 interface LiveJob {
@@ -49,6 +51,7 @@ export default function JobSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [tailorJob, setTailorJob] = useState<LiveJob | null>(null);
 
   const runSearch = useCallback(async (q: string, loc: string) => {
     setLoading(true);
@@ -204,6 +207,7 @@ export default function JobSearchPage() {
                     applied={appliedIds.has(j.id)}
                     onSave={() => save(j)}
                     onApply={() => apply(j)}
+                    onTailor={() => setTailorJob(j)}
                   />
                 ))}
               </div>
@@ -228,6 +232,8 @@ export default function JobSearchPage() {
           appliedCompanies={new Set(applications.map((a) => a.company + a.role))}
         />
       )}
+
+      <TailorModal job={tailorJob} onClose={() => setTailorJob(null)} />
     </div>
   );
 }
@@ -238,12 +244,14 @@ function LiveCard({
   applied,
   onSave,
   onApply,
+  onTailor,
 }: {
   job: LiveJob;
   saved: boolean;
   applied: boolean;
   onSave: () => void;
   onApply: () => void;
+  onTailor: () => void;
 }) {
   return (
     <Card className="flex flex-col p-5">
@@ -290,17 +298,26 @@ function LiveCard({
         {job.description}
       </p>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between gap-2">
         <span className="text-xs text-neutral-400">Posted {ago(job.postedAt)}</span>
-        {applied ? (
-          <span className="chip bg-accent-green/15 text-accent-green">
-            <Check className="h-3 w-3" /> Applied
-          </span>
-        ) : (
-          <button className="btn-primary text-xs" onClick={onApply}>
-            <Send className="h-3.5 w-3.5" /> Apply
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-ghost text-xs"
+            onClick={onTailor}
+            title="Tailor your resume to this job"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Tailor
           </button>
-        )}
+          {applied ? (
+            <span className="chip bg-accent-green/15 text-accent-green">
+              <Check className="h-3 w-3" /> Applied
+            </span>
+          ) : (
+            <button className="btn-primary text-xs" onClick={onApply}>
+              <Send className="h-3.5 w-3.5" /> Apply
+            </button>
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -402,5 +419,152 @@ function TabBtn({
     >
       {children}
     </button>
+  );
+}
+
+const RESUME_KEY = "career-ops:base-resume";
+
+function TailorModal({
+  job,
+  onClose,
+}: {
+  job: LiveJob | null;
+  onClose: () => void;
+}) {
+  const [resume, setResume] = useState("");
+  const [output, setOutput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!job) return;
+    try {
+      setResume(localStorage.getItem(RESUME_KEY) ?? "");
+    } catch {
+      /* ignore */
+    }
+    setOutput("");
+    setError(null);
+  }, [job]);
+
+  async function run() {
+    if (!job || !resume.trim()) {
+      setError("Paste your base resume first.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setOutput("");
+    try {
+      localStorage.setItem(RESUME_KEY, resume);
+    } catch {
+      /* ignore */
+    }
+    try {
+      const res = await fetch("/api/jobs/tailor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle: job.title,
+          jobCompany: job.company,
+          jobDescription: job.description,
+          resume,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Tailoring failed.");
+      } else {
+        setOutput(data.tailored ?? "");
+      }
+    } catch {
+      setError("Could not reach the tailor service.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(output);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <Modal
+      open={job !== null}
+      onClose={onClose}
+      title={`Tailor resume — ${job?.title ?? ""}`}
+      wide
+    >
+      {job && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-line bg-bg-soft p-3 text-xs text-neutral-600">
+            <div className="font-semibold text-neutral-900">
+              {job.title} · {job.company}
+            </div>
+            <div className="mt-0.5 text-neutral-500">{job.location}</div>
+            <p className="mt-2 line-clamp-3 text-neutral-600">{job.description}</p>
+          </div>
+
+          <div>
+            <label className="label">Your base resume</label>
+            <textarea
+              className="input min-h-[180px]"
+              value={resume}
+              onChange={(e) => setResume(e.target.value)}
+              placeholder="Paste your resume / experience summary. Saved locally so you don't have to retype each time."
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button className="btn-primary" onClick={run} disabled={loading}>
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Tailor for this job
+            </button>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-accent-red/40 bg-accent-red/10 px-3 py-2 text-xs text-accent-red">
+              {error}
+            </div>
+          )}
+
+          {output && (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-700">
+                  Tailored resume
+                </span>
+                <button
+                  onClick={copy}
+                  className="btn-subtle text-xs"
+                  title="Copy to clipboard"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-bg-soft p-4 text-sm text-neutral-800">
+                {output}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }

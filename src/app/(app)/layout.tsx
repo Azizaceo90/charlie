@@ -6,15 +6,7 @@ import { useData } from "@/lib/store";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import Topbar from "@/components/Topbar";
-
-const ADMIN_PATHS = [
-  "/dashboard",
-  "/applications",
-  "/insights",
-  "/job-search",
-  "/applicants",
-  "/team",
-];
+import { canAccessPath } from "@/components/nav";
 
 export default function AppLayout({
   children,
@@ -31,10 +23,7 @@ export default function AppLayout({
       router.replace("/login");
       return;
     }
-    if (
-      currentUser.role !== "admin" &&
-      ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
-    ) {
+    if (!canAccessPath(pathname, currentUser)) {
       router.replace("/contracts");
     }
   }, [ready, currentUser, pathname, router]);

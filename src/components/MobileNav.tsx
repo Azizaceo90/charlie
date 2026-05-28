@@ -9,7 +9,7 @@ export default function MobileNav() {
   const pathname = usePathname();
   const { currentUser } = useData();
   if (!currentUser) return null;
-  const items = visibleNav(currentUser.role);
+  const items = visibleNav(currentUser);
 
   return (
     <div className="border-b border-line bg-bg-soft md:hidden">

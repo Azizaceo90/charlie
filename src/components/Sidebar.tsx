@@ -12,7 +12,7 @@ export default function Sidebar() {
   const { currentUser, logout } = useData();
   if (!currentUser) return null;
 
-  const items = visibleNav(currentUser.role);
+  const items = visibleNav(currentUser);
   const groups = ["Personal", "Workspace"] as const;
 
   return (
