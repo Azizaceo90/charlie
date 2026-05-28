@@ -71,6 +71,8 @@ export default function JobSearchPage() {
     currentUser,
   } = useData();
   const isAdmin = currentUser?.role === "admin";
+  const canSwitchCategory =
+    isAdmin || currentUser?.title === "Application Specialist";
   const initialCategory: Category =
     currentUser?.title === "Medical Coder" ? "medical" : "sales";
 
@@ -201,7 +203,7 @@ export default function JobSearchPage() {
       {tab === "search" ? (
         <>
           <Card className="mb-4 p-4">
-            {isAdmin && (
+            {canSwitchCategory && (
               <div className="mb-3 inline-flex gap-1 rounded-lg border border-line bg-bg-soft p-1">
                 {(Object.keys(CATEGORIES) as Category[]).map((c) => (
                   <button
