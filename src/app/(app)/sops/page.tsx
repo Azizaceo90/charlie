@@ -17,11 +17,15 @@ export default function SopsPage() {
 
   const isMedical = currentUser?.title === "Medical Coder";
 
-  // Medical coders don't see "Job Stacking" SOPs (those are App Specialist).
+  // Medical coders only see SOPs that mention "medical" in title or category.
   const visibleSops = useMemo(
     () =>
       isMedical
-        ? sops.filter((s) => !/job\s*stack/i.test(s.category ?? ""))
+        ? sops.filter(
+            (s) =>
+              /medical/i.test(s.title) ||
+              /medical/i.test(s.category ?? "")
+          )
         : sops,
     [sops, isMedical]
   );
