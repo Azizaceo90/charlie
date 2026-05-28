@@ -10,7 +10,6 @@ import Topbar from "@/components/Topbar";
 const ADMIN_PATHS = [
   "/dashboard",
   "/applications",
-  "/time-tracker",
   "/insights",
   "/job-search",
   "/applicants",

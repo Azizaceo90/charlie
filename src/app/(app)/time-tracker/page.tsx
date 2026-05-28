@@ -32,6 +32,12 @@ function fmtClock(ms: number): string {
 }
 
 export default function TimeTrackerPage() {
+  const { currentUser } = useData();
+  if (currentUser?.role === "admin") return <TeamHoursView />;
+  return <PersonalTracker />;
+}
+
+function PersonalTracker() {
   const { currentUser, timeEntries, addTimeEntry, updateTimeEntry, removeTimeEntry } =
     useData();
   const [tick, setTick] = useState(Date.now());
@@ -365,5 +371,182 @@ function ManualEntryModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+function TeamHoursView() {
+  const { users, timeEntries } = useData();
+  const [range, setRange] = useState<RangeKey>("7days");
+  const [tick, setTick] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const employees = useMemo(
+    () => users.filter((u) => u.role === "employee"),
+    [users]
+  );
+
+  const inRange = useMemo(
+    () =>
+      timeEntries.filter((e) => isInRange(e.clockIn, range, new Date(tick))),
+    [timeEntries, range, tick]
+  );
+
+  const totalsByUser = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of inRange) {
+      map.set(e.userId, (map.get(e.userId) ?? 0) + entryMinutes(e, tick));
+    }
+    return map;
+  }, [inRange, tick]);
+
+  const totalMins = Array.from(totalsByUser.values()).reduce((s, m) => s + m, 0);
+  const activePeople = Array.from(totalsByUser.values()).filter((m) => m > 0).length;
+
+  const rows = useMemo(
+    () =>
+      employees
+        .map((u) => ({ user: u, mins: totalsByUser.get(u.id) ?? 0 }))
+        .sort((a, b) => b.mins - a.mins),
+    [employees, totalsByUser]
+  );
+  const maxMins = Math.max(1, ...rows.map((r) => r.mins));
+
+  const recent = useMemo(
+    () =>
+      [...inRange]
+        .sort((a, b) => (a.clockIn < b.clockIn ? 1 : -1))
+        .slice(0, 12)
+        .map((e) => ({
+          entry: e,
+          user: users.find((u) => u.id === e.userId),
+        })),
+    [inRange, users]
+  );
+
+  return (
+    <div>
+      <PageHeader
+        title="Team hours"
+        subtitle="Time logged by your team."
+        actions={<RangeFilter value={range} onChange={setRange} />}
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <StatCard
+          label="Total team hours"
+          value={minutesToHm(totalMins)}
+          tone="blue"
+          icon={<Clock className="h-4 w-4" />}
+        />
+        <StatCard
+          label="People logging time"
+          value={`${activePeople}/${employees.length}`}
+          tone="teal"
+        />
+        <StatCard
+          label="Avg per person"
+          value={
+            activePeople > 0 ? minutesToHm(totalMins / activePeople) : "0m"
+          }
+          tone="purple"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
+        <Card className="p-5">
+          <h2 className="mb-4 text-sm font-medium text-neutral-900">
+            Hours by employee
+          </h2>
+          {employees.length === 0 ? (
+            <EmptyState
+              icon={<Clock className="h-8 w-8" />}
+              title="No employees yet"
+              hint="Add employees from the Team page."
+            />
+          ) : (
+            <div className="space-y-3">
+              {rows.map(({ user, mins }) => (
+                <div key={user.id} className="flex items-center gap-3">
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                    style={{ backgroundColor: user.avatarColor ?? "#0073ea" }}
+                  >
+                    {user.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-neutral-900">
+                      {user.name}
+                    </div>
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-bg-soft">
+                      <div
+                        className="h-full rounded-full bg-brand"
+                        style={{ width: `${(mins / maxMins) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-neutral-700">
+                    {minutesToHm(mins)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card className="overflow-hidden">
+          <div className="border-b border-line px-5 py-3 text-sm font-medium text-neutral-900">
+            Recent activity
+          </div>
+          {recent.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={<Clock className="h-8 w-8" />}
+                title="No entries in this range"
+                hint="Pick a wider time range."
+              />
+            </div>
+          ) : (
+            <div className="divide-y divide-line">
+              {recent.map(({ entry, user }) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-3 px-5 py-3"
+                >
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                    style={{ backgroundColor: user?.avatarColor ?? "#0073ea" }}
+                  >
+                    {(user?.name ?? "?")
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-neutral-900">
+                      {user?.name ?? "Unknown"}
+                    </div>
+                    <div className="truncate text-xs text-neutral-500">
+                      {entry.project ?? "—"} · {dateOnly(entry.clockIn)} ·{" "}
+                      {timeOnly(entry.clockIn)}
+                      {entry.clockOut ? `–${timeOnly(entry.clockOut)}` : ""}
+                    </div>
+                  </div>
+                  <div className="text-sm font-semibold tabular-nums text-neutral-700">
+                    {entry.clockOut ? minutesToHm(entryMinutes(entry, tick)) : "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 }
