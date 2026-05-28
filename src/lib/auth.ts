@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 
 const SECRET = process.env.AUTH_SECRET || "dev-insecure-secret-change-me";
 const COOKIE = "session";
+const IMPERSONATOR_COOKIE = "impersonator";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export function hashPassword(pw: string): Promise<string> {
@@ -63,6 +64,27 @@ export function setSessionCookie(userId: string) {
 
 export function clearSessionCookie() {
   cookies().set(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+}
+
+export function setImpersonatorCookie(adminUserId: string) {
+  cookies().set(IMPERSONATOR_COOKIE, signSession(adminUserId), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE,
+  });
+}
+
+export function clearImpersonatorCookie() {
+  cookies().set(IMPERSONATOR_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+}
+
+export async function getImpersonator() {
+  const token = cookies().get(IMPERSONATOR_COOKIE)?.value;
+  const uid = verifySession(token);
+  if (!uid) return null;
+  return prisma.user.findUnique({ where: { id: uid } });
 }
 
 export async function getCurrentUser() {

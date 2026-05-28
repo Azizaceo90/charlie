@@ -81,6 +81,13 @@ interface AppData {
     error?: string;
   }>;
   removeUser: (id: string) => Promise<string | null>;
+  editUser: (
+    id: string,
+    fields: { name?: string; email?: string; title?: string | null; role?: string }
+  ) => Promise<string | null>;
+  impersonator: { id: string; name: string } | null;
+  impersonateUser: (userId: string) => Promise<string | null>;
+  stopImpersonating: () => Promise<void>;
   updateProfile: (fields: ProfileFields) => Promise<string | null>;
 
   personalDocs: PersonalDoc[];
@@ -138,6 +145,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [impersonator, setImpersonator] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [personalDocs, setPersonalDocs] = useState<PersonalDoc[]>([]);
 
@@ -190,7 +201,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const meRes = await fetch("/api/auth/me");
-        const me = (await meRes.json()).user as User | null;
+        const meData = await meRes.json();
+        const me = meData.user as User | null;
+        setImpersonator(meData.impersonator ?? null);
         if (me) {
           setCurrentUser(me);
           await loadBootstrap();
@@ -292,6 +305,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch(`/api/personal-docs/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Delete failed");
     setPersonalDocs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const editUser = useCallback(
+    async (
+      id: string,
+      fields: { name?: string; email?: string; title?: string | null; role?: string }
+    ): Promise<string | null> => {
+      const res = await fetch(`/api/auth/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error ?? "Could not save user.";
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...data.user } : u)));
+      return null;
+    },
+    []
+  );
+
+  const impersonateUser = useCallback(
+    async (userId: string): Promise<string | null> => {
+      const res = await fetch("/api/auth/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error ?? "Could not switch user.";
+      // Hard navigate so all data + session reload cleanly.
+      window.location.assign("/");
+      return null;
+    },
+    []
+  );
+
+  const stopImpersonating = useCallback(async () => {
+    await fetch("/api/auth/stop-impersonating", { method: "POST" });
+    window.location.assign("/team");
   }, []);
 
   const removeUser = useCallback(async (id: string): Promise<string | null> => {
@@ -444,6 +496,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     logout,
     addUser,
     removeUser,
+    editUser,
+    impersonator,
+    impersonateUser,
+    stopImpersonating,
     updateProfile,
     personalDocs,
     addPersonalDoc,

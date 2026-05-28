@@ -1,13 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Shield, Trash2, User as UserIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  LogIn,
+  Pencil,
+  Plus,
+  Shield,
+  Trash2,
+  User as UserIcon,
+} from "lucide-react";
 import { useData } from "@/lib/store";
+import { User } from "@/lib/types";
 import { Card, EmptyState, Modal, PageHeader } from "@/components/ui";
 
 export default function TeamPage() {
-  const { currentUser, users, removeUser } = useData();
+  const { currentUser, users, removeUser, impersonateUser } = useData();
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<User | null>(null);
+
+  async function handleImpersonate(u: User) {
+    if (
+      !window.confirm(
+        `Sign in as ${u.name}? You'll see their account; click "Return to admin" to switch back.`
+      )
+    )
+      return;
+    const err = await impersonateUser(u.id);
+    if (err) window.alert(err);
+  }
 
   async function handleDelete(id: string, name: string) {
     if (
@@ -76,14 +96,30 @@ export default function TeamPage() {
                 )}
                 {u.role}
               </span>
+              <button
+                onClick={() => setEditing(u)}
+                className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-neutral-900"
+                title="Edit user"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
               {u.id !== currentUser?.id && (
-                <button
-                  onClick={() => handleDelete(u.id, u.name)}
-                  className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-accent-red"
-                  title="Remove user"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <>
+                  <button
+                    onClick={() => handleImpersonate(u)}
+                    className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-brand"
+                    title="Sign in as this user"
+                  >
+                    <LogIn className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(u.id, u.name)}
+                    className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-accent-red"
+                    title="Remove user"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
               )}
             </div>
           ))}
@@ -91,7 +127,120 @@ export default function TeamPage() {
       </Card>
 
       <AddEmployeeModal open={showAdd} onClose={() => setShowAdd(false)} />
+      <EditEmployeeModal
+        user={editing}
+        isSelf={editing?.id === currentUser?.id}
+        onClose={() => setEditing(null)}
+      />
     </div>
+  );
+}
+
+function EditEmployeeModal({
+  user,
+  isSelf,
+  onClose,
+}: {
+  user: User | null;
+  isSelf: boolean;
+  onClose: () => void;
+}) {
+  const { editUser } = useData();
+  const [name, setName] = useState(user?.name ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [title, setTitle] = useState(user?.title ?? "");
+  const [role, setRole] = useState<string>(user?.role ?? "employee");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name);
+    setEmail(user.email);
+    setTitle(user.title ?? "");
+    setRole(user.role);
+    setError(null);
+  }, [user?.id, user]);
+
+  async function save() {
+    if (!user) return;
+    setSaving(true);
+    setError(null);
+    const err = await editUser(user.id, {
+      name: name.trim(),
+      email: email.trim(),
+      title: title.trim() || null,
+      role,
+    });
+    setSaving(false);
+    if (err) setError(err);
+    else onClose();
+  }
+
+  if (!user) return null;
+
+  return (
+    <Modal open={user !== null} onClose={onClose} title={`Edit ${user.name}`}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Name</label>
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">Title</label>
+            <select
+              className="input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            >
+              <option value="">—</option>
+              <option value="Medical Coder">Medical Coder</option>
+              <option value="Application Specialist">Application Specialist</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="label">Email</label>
+          <input
+            type="email"
+            className="input"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Role</label>
+          <select
+            className="input"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            disabled={isSelf}
+          >
+            <option value="employee">Employee</option>
+            <option value="admin">Admin</option>
+          </select>
+          {isSelf && (
+            <p className="mt-1 text-[11px] text-neutral-500">
+              You can't change your own role.
+            </p>
+          )}
+        </div>
+        {error && <p className="text-xs text-accent-red">{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
+            Save changes
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

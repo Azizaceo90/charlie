@@ -7,6 +7,7 @@ import {
   Bell,
   CheckCircle2,
   FileSignature,
+  LogOut,
   Search,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -23,6 +24,8 @@ export default function Topbar() {
     unreadCount,
     markNotificationsRead,
     refreshNotifications,
+    impersonator,
+    stopImpersonating,
   } = useData();
   const [open, setOpen] = useState(false);
   if (!currentUser) return null;
@@ -41,6 +44,21 @@ export default function Topbar() {
   }
 
   return (
+    <>
+      {impersonator && (
+        <div className="z-20 flex items-center justify-between gap-3 border-b border-accent-amber/40 bg-accent-amber/15 px-4 py-2 text-xs sm:px-6">
+          <span className="text-neutral-800">
+            Signed in as <strong>{currentUser.name}</strong> · viewing as{" "}
+            <strong>{impersonator.name}</strong>
+          </span>
+          <button
+            onClick={stopImpersonating}
+            className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-black"
+          >
+            <LogOut className="h-3 w-3" /> Return to admin
+          </button>
+        </div>
+      )}
     <header className="z-20 flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg-card px-4 sm:px-6">
       <div className="hidden items-center gap-2 text-sm sm:flex">
         <span className="text-neutral-400">JCAT Media</span>
@@ -162,5 +180,6 @@ export default function Topbar() {
         </div>
       </div>
     </header>
+    </>
   );
 }
