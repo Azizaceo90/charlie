@@ -37,7 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/job-search", label: "Job Search", icon: Search, color: "#00d2d2", adminOnly: true, extraTitles: ["Application Specialist"], group: "Personal" },
   { href: "/documents", label: "Document Studio", icon: Wand2, color: "#06b6d4", titlesOnly: ["Application Specialist"], group: "Personal" },
   { href: "/account", label: "My Account", icon: UserCircle, color: "#22c55e", group: "Personal" },
-  { href: "/sops", label: "SOPs", icon: FileText, color: "#ff5ac4", group: "Workspace" },
+  { href: "/sops", label: "SOPs", icon: FileText, color: "#ff5ac4", adminOnly: true, extraTitles: ["Application Specialist"], group: "Workspace" },
   { href: "/contracts", label: "Contracts", icon: FileSignature, color: "#ffcb00", group: "Workspace" },
   { href: "/applicants", label: "Applicants", icon: Users, color: "#e2445c", adminOnly: true, group: "Workspace" },
   { href: "/team", label: "Team", icon: UserPlus, color: "#784bd1", adminOnly: true, group: "Workspace" },
