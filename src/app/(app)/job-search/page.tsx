@@ -114,7 +114,7 @@ export default function JobSearchPage() {
     <div>
       <PageHeader
         title="Job Search"
-        subtitle="Search live job listings and apply in one click."
+        subtitle="Remote roles open to US or Canada candidates."
       />
 
       <div className="mb-5 flex gap-1 rounded-lg border border-line bg-bg-soft p-1">
@@ -143,7 +143,7 @@ export default function JobSearchPage() {
                 <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                 <input
                   className="input pl-9"
-                  placeholder="Location (Remote, NYC…)"
+                  placeholder="State/region (optional)"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 interface NormalizedJob {
   id: string;
@@ -14,7 +14,15 @@ interface NormalizedJob {
   postedAt: string;
   url: string;
   description: string;
-  source: "remotive" | "muse";
+  source: "remotive" | "muse" | "adzuna";
+}
+
+function formatSalary(min?: number, max?: number): string | undefined {
+  const fmt = (n: number) => `$${Math.round(n / 1000)}k`;
+  if (min && max) return `${fmt(min)}–${fmt(max)}`;
+  if (min) return `${fmt(min)}+`;
+  if (max) return `up to ${fmt(max)}`;
+  return undefined;
 }
 
 function stripHtml(html: string): string {
@@ -54,13 +62,42 @@ function museCategory(q: string): string | null {
   return null;
 }
 
+/** True when a job is remote AND open to candidates in the US or Canada. */
+function isRemoteUsCanada(loc: string, source: NormalizedJob["source"]): boolean {
+  const x = (loc || "").trim().toLowerCase();
+  if (!x) return source === "remotive"; // Remotive is a remote-only board.
+  // Reject locations restricted to other regions — unless they also list US/CA.
+  if (
+    /\b(emea|europe|eu only|latam|latin america|apac|asia|africa|australia|new zealand|middle east|india|brazil|argentina|mexico|colombia|chile|peru|uk only|ireland only|germany|france|italy|spain|netherlands|sweden|portugal|poland|romania|ukraine|israel)\b/.test(
+      x
+    )
+  ) {
+    return /\b(usa?|u\.s\.|united states|america|canada|north america|americas)\b/.test(
+      x
+    );
+  }
+  // Accept anywhere-remote
+  if (/\b(remote|anywhere|worldwide|global|flexible)\b/.test(x)) return true;
+  // Accept US/Canada/regional names
+  if (/\b(usa?|u\.s\.|united states|america|canada|north america|americas)\b/.test(x))
+    return true;
+  // Muse country-only fields
+  if (source === "muse" && /^(united states|canada)$/.test(x)) return true;
+  return false;
+}
+
 async function fetchRemotive(
   q: string,
   signal: AbortSignal
 ): Promise<NormalizedJob[]> {
-  const url = `https://remotive.com/api/remote-jobs?limit=50${
-    q ? `&search=${encodeURIComponent(q)}` : ""
-  }`;
+  // For sales-family queries, pull the whole "sales-business" category for
+  // breadth; otherwise use the keyword search.
+  const isSales = museCategory(q) === "Sales";
+  const url = isSales
+    ? `https://remotive.com/api/remote-jobs?category=sales-business&limit=100`
+    : `https://remotive.com/api/remote-jobs?limit=50${
+        q ? `&search=${encodeURIComponent(q)}` : ""
+      }`;
   const res = await fetch(url, {
     signal,
     headers: { "User-Agent": "career-ops-dashboard" },
@@ -99,9 +136,9 @@ async function fetchMuse(
 ): Promise<NormalizedJob[]> {
   const category = museCategory(q);
   if (!category) return [];
-  // Pull two pages in parallel to get ~40 results.
+  // Pull more pages to widen the pool (~120 results).
   const pages = await Promise.all(
-    [0, 1].map((page) =>
+    [0, 1, 2, 3, 4, 5].map((page) =>
       fetch(
         `https://www.themuse.com/api/public/jobs?category=${encodeURIComponent(category)}&page=${page}`,
         { signal }
@@ -163,6 +200,65 @@ function buildKeywords(q: string): string[] {
   return x.split(/\s+/).filter((w) => w.length >= 3);
 }
 
+interface AdzunaJob {
+  id: string | number;
+  title?: string;
+  description?: string;
+  created?: string;
+  redirect_url?: string;
+  contract_time?: string;
+  contract_type?: string;
+  salary_min?: number;
+  salary_max?: number;
+  company?: { display_name?: string };
+  location?: { display_name?: string };
+}
+
+async function fetchAdzuna(
+  q: string,
+  signal: AbortSignal
+): Promise<NormalizedJob[]> {
+  const id = process.env.ADZUNA_APP_ID;
+  const key = process.env.ADZUNA_APP_KEY;
+  if (!id || !key || !q) return [];
+  const COUNTRIES = ["us", "ca"];
+  const PAGES = [1, 2, 3];
+  const calls: Promise<NormalizedJob[]>[] = [];
+  for (const country of COUNTRIES) {
+    for (const page of PAGES) {
+      const url =
+        `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}` +
+        `?app_id=${id}&app_key=${key}&results_per_page=50` +
+        `&what=${encodeURIComponent(q)}&where=remote&content-type=application/json`;
+      calls.push(
+        fetch(url, { signal })
+          .then((r) => (r.ok ? r.json() : { results: [] }))
+          .then((d: { results?: AdzunaJob[] }) =>
+            (d.results ?? []).map(
+              (j): NormalizedJob => ({
+                id: `adzuna-${j.id}`,
+                title: j.title ?? "",
+                company: j.company?.display_name ?? "Unknown",
+                location:
+                  (j.location?.display_name ?? "Remote") +
+                  ` · ${country === "us" ? "United States" : "Canada"}`,
+                type: mapType(j.contract_time ?? j.contract_type ?? ""),
+                salary: formatSalary(j.salary_min, j.salary_max),
+                postedAt: j.created ?? new Date().toISOString(),
+                url: j.redirect_url ?? "",
+                description: shortDesc(stripHtml(j.description ?? "")),
+                source: "adzuna",
+              })
+            )
+          )
+          .catch(() => [])
+      );
+    }
+  }
+  const pages = await Promise.all(calls);
+  return pages.flat();
+}
+
 function titleMatches(title: string, keywords: string[]): boolean {
   if (keywords.length === 0) return true;
   const t = title.toLowerCase();
@@ -177,17 +273,18 @@ export async function GET(req: NextRequest) {
   const loc = (req.nextUrl.searchParams.get("loc") || "").trim().toLowerCase();
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 18000);
+  const timeout = setTimeout(() => controller.abort(), 25000);
   try {
-    const [remotive, muse] = await Promise.all([
+    const [remotive, muse, adzuna] = await Promise.all([
       fetchRemotive(q, controller.signal).catch(() => []),
       fetchMuse(q, controller.signal).catch(() => []),
+      fetchAdzuna(q, controller.signal).catch(() => []),
     ]);
 
     // Merge + de-dupe by url (fall back to source+title+company).
     const seen = new Set<string>();
     const merged: NormalizedJob[] = [];
-    for (const j of [...remotive, ...muse]) {
+    for (const j of [...remotive, ...muse, ...adzuna]) {
       const key = j.url || `${j.source}|${j.company}|${j.title}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -199,13 +296,16 @@ export async function GET(req: NextRequest) {
     const keywords = buildKeywords(q);
     let filtered = merged.filter((j) => titleMatches(j.title, keywords));
 
-    // Optional location filter (substring, case-insensitive).
+    // Geo filter: only remote roles open to US or Canada candidates.
+    filtered = filtered.filter((j) => isRemoteUsCanada(j.location, j.source));
+
+    // Optional further substring filter from the user (city, etc.).
     if (loc)
       filtered = filtered.filter((j) => j.location.toLowerCase().includes(loc));
 
     filtered.sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
 
-    return NextResponse.json({ jobs: filtered.slice(0, 80) });
+    return NextResponse.json({ jobs: filtered.slice(0, 200) });
   } catch (err) {
     return NextResponse.json(
       {
