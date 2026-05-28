@@ -43,10 +43,17 @@ export async function GET(req: NextRequest) {
       );
       const data = (await res.json()) as { jobs?: unknown[]; error?: string };
       const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+      // Roll yesterday's snapshot into previousData before writing today's.
+      const existing = await prisma.jobCache.findUnique({
+        where: { queryKey: q },
+      });
       await prisma.jobCache.upsert({
         where: { queryKey: q },
         create: { queryKey: q, data: JSON.stringify(jobs) },
-        update: { data: JSON.stringify(jobs) },
+        update: {
+          data: JSON.stringify(jobs),
+          previousData: existing?.data ?? null,
+        },
       });
       results[q] = { count: jobs.length, error: data.error };
     } catch (e) {

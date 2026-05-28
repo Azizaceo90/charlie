@@ -28,6 +28,7 @@ interface LiveJob {
   postedAt: string;
   url: string;
   description: string;
+  isNew?: boolean;
 }
 
 const SALES_QUICK = [
@@ -333,6 +334,9 @@ function LiveCard({
             className="flex items-center gap-1 font-semibold text-neutral-900 hover:text-brand"
           >
             <span className="truncate">{job.title}</span>
+            {job.isNew && (
+              <span className="chip bg-accent-green text-white">NEW</span>
+            )}
             <ExternalLink className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
           </a>
           <div className="truncate text-sm text-neutral-500">{job.company}</div>

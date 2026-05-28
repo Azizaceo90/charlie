@@ -102,10 +102,11 @@ model Applicant {
 }
 
 model JobCache {
-  id        String   @id @default(cuid())
-  queryKey  String   @unique
-  data      String // JSON-encoded jobs array
-  fetchedAt DateTime @default(now()) @updatedAt
+  id           String   @id @default(cuid())
+  queryKey     String   @unique
+  data         String // current snapshot (JSON jobs array)
+  previousData String? // yesterday's snapshot, for "new since yesterday" diff
+  fetchedAt    DateTime @default(now()) @updatedAt
 }
 
 model GmailToken {
