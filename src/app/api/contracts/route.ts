@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   let emailed = false;
   if (assignee) {
     const base64 = contract.dataUrl.split(",")[1] ?? "";
-    emailed = await sendEmail({
+    const result = await sendEmail({
       to: assignee.email,
       subject: `Contract to sign: ${contract.title}`,
       html: contractEmailHtml({
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
         ? [{ filename: contract.fileName, content: base64 }]
         : undefined,
     });
+    emailed = result.ok;
   }
 
   return NextResponse.json({ ...contract, emailed }, { status: 201 });

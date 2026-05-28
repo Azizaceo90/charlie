@@ -10,14 +10,19 @@ interface SendArgs {
  * false) when RESEND_API_KEY isn't configured, so the app degrades gracefully
  * to showing credentials in the UI instead.
  */
+export interface SendResult {
+  ok: boolean;
+  error?: string;
+}
+
 export async function sendEmail({
   to,
   subject,
   html,
   attachments,
-}: SendArgs): Promise<boolean> {
+}: SendArgs): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return false;
+  if (!key) return { ok: false, error: "Email is not configured (no RESEND_API_KEY)." };
   const from = process.env.EMAIL_FROM || "Career Ops <onboarding@resend.dev>";
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -34,9 +39,11 @@ export async function sendEmail({
         ...(attachments?.length ? { attachments } : {}),
       }),
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: data.message ?? `Email failed (${res.status}).` };
   } catch {
-    return false;
+    return { ok: false, error: "Could not reach the email service." };
   }
 }
 

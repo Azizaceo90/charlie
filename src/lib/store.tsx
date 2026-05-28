@@ -64,7 +64,12 @@ interface AppData {
     password: string;
     role: string;
     title?: string;
-  }) => Promise<{ user?: User; emailed?: boolean; error?: string }>;
+  }) => Promise<{
+    user?: User;
+    emailed?: boolean;
+    emailError?: string;
+    error?: string;
+  }>;
   removeUser: (id: string) => Promise<string | null>;
 
   notifications: AppNotification[];
@@ -213,7 +218,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (!res.ok) return { error: data.error ?? "Failed to add user." };
       setUsers((prev) => [...prev, data.user]);
-      return { user: data.user as User, emailed: Boolean(data.emailed) };
+      return {
+        user: data.user as User,
+        emailed: Boolean(data.emailed),
+        emailError: data.emailError as string | undefined,
+      };
     },
     []
   );

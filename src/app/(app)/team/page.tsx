@@ -114,6 +114,7 @@ function AddEmployeeModal({
     email: string;
     password: string;
     emailed: boolean;
+    emailError?: string;
   } | null>(null);
 
   function reset() {
@@ -149,6 +150,7 @@ function AddEmployeeModal({
       email: email.trim(),
       password,
       emailed: Boolean(res.emailed),
+      emailError: res.emailError,
     });
   }
 
@@ -168,8 +170,14 @@ function AddEmployeeModal({
             <p className="mt-1 text-neutral-600">
               {created.emailed
                 ? `An invite email was sent to ${created.email}. You can also share these credentials directly:`
-                : "Email isn't set up yet, so share these credentials with the employee — they sign in at the login page:"}
+                : "Share these credentials with the employee — they sign in at the login page:"}
             </p>
+            {!created.emailed && created.emailError && (
+              <div className="mt-2 rounded-md border border-accent-amber/40 bg-accent-amber/10 px-3 py-2 text-xs text-neutral-700">
+                <span className="font-medium">Email not sent:</span>{" "}
+                {created.emailError}
+              </div>
+            )}
             <div className="mt-3 space-y-1 text-neutral-700">
               <div>
                 Email: <code>{created.email}</code>

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const emailed = await sendEmail({
+  const result = await sendEmail({
     to: user.email,
     subject: "You've been invited to Career Ops",
     html: inviteEmailHtml({
@@ -62,5 +62,8 @@ export async function POST(req: NextRequest) {
     }),
   });
 
-  return NextResponse.json({ user: publicUser(user), emailed }, { status: 201 });
+  return NextResponse.json(
+    { user: publicUser(user), emailed: result.ok, emailError: result.error },
+    { status: 201 }
+  );
 }
