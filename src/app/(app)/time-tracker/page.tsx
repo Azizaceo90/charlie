@@ -168,6 +168,14 @@ function PersonalTracker() {
               </button>
             )}
           </div>
+
+          {currentUser?.title === "Medical Coder" && active && (
+            <ChartsCodedInput
+              entryId={active.id}
+              initial={active.chartsCoded ?? 0}
+              onSave={(n) => updateTimeEntry(active.id, { chartsCoded: n })}
+            />
+          )}
         </Card>
 
         <div className="grid grid-cols-2 gap-4 lg:col-span-2 lg:grid-cols-2">
@@ -547,6 +555,44 @@ function TeamHoursView() {
           )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ChartsCodedInput({
+  entryId,
+  initial,
+  onSave,
+}: {
+  entryId: string;
+  initial: number;
+  onSave: (n: number) => void;
+}) {
+  const [val, setVal] = useState<string>(String(initial));
+  useEffect(() => {
+    setVal(String(initial));
+  }, [entryId, initial]);
+
+  function commit() {
+    const n = Math.max(0, parseInt(val || "0", 10) || 0);
+    setVal(String(n));
+    onSave(n);
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-bg-soft p-3">
+      <label className="label">Charts coded today</label>
+      <input
+        type="number"
+        min={0}
+        className="input"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+      />
     </div>
   );
 }

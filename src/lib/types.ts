@@ -7,6 +7,24 @@ export interface User {
   role: Role;
   title?: string | null;
   avatarColor?: string | null;
+  fullLegalName?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  onboardingDone?: boolean;
+}
+
+export interface PersonalDoc {
+  id: string;
+  userId: string;
+  title: string;
+  category?: string | null;
+  fileName: string;
+  dataUrl: string;
+  sizeKb: number;
+  uploadedAt: string;
 }
 
 export interface AppNotification {
@@ -51,6 +69,8 @@ export interface TimeEntry {
   clockOut?: string;
   project?: string;
   note?: string;
+  chartsCoded?: number;
+  claimsProcessed?: number;
 }
 
 // ── SOP documents ────────────────────────────────────────────────────────────

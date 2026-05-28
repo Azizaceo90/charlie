@@ -79,6 +79,13 @@ export interface PublicUser {
   role: string;
   title: string | null;
   avatarColor: string | null;
+  fullLegalName?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  onboardingDone?: boolean;
 }
 
 export function publicUser(u: {
@@ -88,6 +95,13 @@ export function publicUser(u: {
   role: string;
   title: string | null;
   avatarColor: string | null;
+  fullLegalName?: string | null;
+  dateOfBirth?: Date | string | null;
+  address?: string | null;
+  phone?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  onboardingDone?: boolean;
 }): PublicUser {
   return {
     id: u.id,
@@ -96,5 +110,15 @@ export function publicUser(u: {
     role: u.role,
     title: u.title,
     avatarColor: u.avatarColor,
+    fullLegalName: u.fullLegalName ?? null,
+    dateOfBirth:
+      u.dateOfBirth instanceof Date
+        ? u.dateOfBirth.toISOString()
+        : (u.dateOfBirth ?? null),
+    address: u.address ?? null,
+    phone: u.phone ?? null,
+    emergencyName: u.emergencyName ?? null,
+    emergencyPhone: u.emergencyPhone ?? null,
+    onboardingDone: Boolean(u.onboardingDone),
   };
 }

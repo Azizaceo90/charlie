@@ -14,10 +14,20 @@ import {
   Contract,
   JobApplication,
   JobListing,
+  PersonalDoc,
   SopDoc,
   TimeEntry,
   User,
 } from "./types";
+
+export interface ProfileFields {
+  fullLegalName?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+}
 
 async function apiCreate<T>(resource: string, input: unknown): Promise<T> {
   const res = await fetch(`/api/${resource}`, {
@@ -71,6 +81,13 @@ interface AppData {
     error?: string;
   }>;
   removeUser: (id: string) => Promise<string | null>;
+  updateProfile: (fields: ProfileFields) => Promise<string | null>;
+
+  personalDocs: PersonalDoc[];
+  addPersonalDoc: (
+    input: Omit<PersonalDoc, "id" | "userId">
+  ) => Promise<PersonalDoc>;
+  removePersonalDoc: (id: string) => Promise<void>;
 
   notifications: AppNotification[];
   unreadCount: number;
@@ -122,6 +139,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [personalDocs, setPersonalDocs] = useState<PersonalDoc[]>([]);
 
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -148,6 +166,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setApplicants(data.applicants ?? []);
     setListings(data.listings ?? []);
     setNotifications(data.notifications ?? []);
+    setPersonalDocs(data.personalDocs ?? []);
+    if (data.me) {
+      setCurrentUser((prev) => (prev ? { ...prev, ...data.me } : prev));
+    }
   }, []);
 
   const clearData = useCallback(() => {
@@ -159,6 +181,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setApplicants([]);
     setListings([]);
     setNotifications([]);
+    setPersonalDocs([]);
   }, []);
 
   useEffect(() => {
@@ -234,6 +257,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const updateProfile = useCallback(
+    async (fields: ProfileFields): Promise<string | null> => {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error ?? "Could not save profile.";
+      setCurrentUser((prev) => (prev ? { ...prev, ...data.user } : prev));
+      return null;
+    },
+    []
+  );
+
+  const addPersonalDoc = useCallback(
+    async (input: Omit<PersonalDoc, "id" | "userId">) => {
+      const res = await fetch("/api/personal-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const created = (await res.json()) as PersonalDoc;
+      setPersonalDocs((prev) => [created, ...prev]);
+      return created;
+    },
+    []
+  );
+
+  const removePersonalDoc = useCallback(async (id: string) => {
+    const res = await fetch(`/api/personal-docs/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Delete failed");
+    setPersonalDocs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
 
   const removeUser = useCallback(async (id: string): Promise<string | null> => {
     const res = await fetch(`/api/auth/users/${id}`, { method: "DELETE" });
@@ -385,6 +444,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     logout,
     addUser,
     removeUser,
+    updateProfile,
+    personalDocs,
+    addPersonalDoc,
+    removePersonalDoc,
     notifications,
     unreadCount: notifications.filter((n) => !n.read).length,
     markNotificationsRead,

@@ -24,9 +24,33 @@ model User {
   passwordHash String?
   createdAt    DateTime @default(now())
 
+  // Onboarding / personal info
+  fullLegalName  String?
+  dateOfBirth    DateTime?
+  address        String?
+  phone          String?
+  emergencyName  String?
+  emergencyPhone String?
+  onboardingDone Boolean   @default(false)
+
   timeEntries   TimeEntry[]
   contracts     Contract[]     @relation("AssignedContracts")
   notifications Notification[]
+  personalDocs  PersonalDoc[]
+}
+
+model PersonalDoc {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  category   String?
+  fileName   String
+  dataUrl    String
+  sizeKb     Int
+  uploadedAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Notification {
@@ -55,13 +79,15 @@ model JobApplication {
 }
 
 model TimeEntry {
-  id       String    @id @default(cuid())
-  userId   String
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clockIn  DateTime
-  clockOut DateTime?
-  project  String?
-  note     String?
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn         DateTime
+  clockOut        DateTime?
+  project         String?
+  note            String?
+  chartsCoded     Int       @default(0)
+  claimsProcessed Int       @default(0)
 }
 
 model SopDoc {
