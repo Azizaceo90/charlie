@@ -15,14 +15,25 @@ export default function SopsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
 
+  const isMedical = currentUser?.title === "Medical Coder";
+
+  // Medical coders don't see "Job Stacking" SOPs (those are App Specialist).
+  const visibleSops = useMemo(
+    () =>
+      isMedical
+        ? sops.filter((s) => !/job\s*stack/i.test(s.category ?? ""))
+        : sops,
+    [sops, isMedical]
+  );
+
   const categories = useMemo(
-    () => ["All", ...Array.from(new Set(sops.map((s) => s.category)))],
-    [sops]
+    () => ["All", ...Array.from(new Set(visibleSops.map((s) => s.category)))],
+    [visibleSops]
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return sops
+    return visibleSops
       .filter((s) => category === "All" || s.category === category)
       .filter(
         (s) =>
@@ -31,7 +42,7 @@ export default function SopsPage() {
           s.category.toLowerCase().includes(q)
       )
       .sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
-  }, [sops, query, category]);
+  }, [visibleSops, query, category]);
 
   const selected = sops.find((s) => s.id === selectedId) ?? filtered[0] ?? null;
 
