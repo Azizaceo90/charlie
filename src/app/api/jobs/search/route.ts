@@ -179,9 +179,10 @@ async function fetchMuse(
 function buildKeywords(q: string): string[] {
   const x = q.toLowerCase().trim();
   if (!x) return [];
-  // Any sales-family search (SDR/BDR/founding/AE) accepts the whole family.
+  // Any sales-family search (SDR/BDR/founding/AE) accepts a broad family of
+  // front-line sales titles.
   if (
-    /\bsdr\b|\bbdr\b|sales development|business development|account exec|\bae\b|founding\s+(sdr|bdr|sales|ae|account)/.test(
+    /\bsdr\b|\bbdr\b|sales development|business development|account exec|account manager|\bae\b|founding\s+(sdr|bdr|sales|ae|account)|inside sales|outside sales|sales rep/.test(
       x
     )
   ) {
@@ -194,6 +195,18 @@ function buildKeywords(q: string): string[] {
       "biz dev",
       "account executive",
       "account exec",
+      "account manager",
+      "inside sales",
+      "outside sales",
+      "outbound sales",
+      "inbound sales",
+      "sales representative",
+      "sales rep",
+      "sales associate",
+      "sales consultant",
+      "sales executive",
+      "sales manager",
+      "sales lead",
     ];
   }
   // Fallback: split into significant words.
@@ -305,7 +318,14 @@ export async function GET(req: NextRequest) {
 
     filtered.sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
 
-    return NextResponse.json({ jobs: filtered.slice(0, 200) });
+    return NextResponse.json({
+      jobs: filtered.slice(0, 200),
+      sources: {
+        remotive: remotive.length,
+        muse: muse.length,
+        adzuna: adzuna.length,
+      },
+    });
   } catch (err) {
     return NextResponse.json(
       {

@@ -52,6 +52,11 @@ export default function JobSearchPage() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [tailorJob, setTailorJob] = useState<LiveJob | null>(null);
+  const [sources, setSources] = useState<{
+    remotive: number;
+    muse: number;
+    adzuna: number;
+  } | null>(null);
 
   const runSearch = useCallback(async (q: string, loc: string) => {
     setLoading(true);
@@ -62,6 +67,7 @@ export default function JobSearchPage() {
       const res = await fetch(`/api/jobs/search?${params.toString()}`);
       const data = await res.json();
       setResults(data.jobs ?? []);
+      setSources(data.sources ?? null);
       if (data.error) setError(data.error);
     } catch {
       setError("Could not load jobs. Try again.");
@@ -195,8 +201,14 @@ export default function JobSearchPage() {
             />
           ) : (
             <>
-              <div className="mb-3 text-xs text-neutral-500">
-                {results.length} live listings
+              <div className="mb-3 flex items-center justify-between text-xs text-neutral-500">
+                <span>{results.length} live listings</span>
+                {sources && (
+                  <span>
+                    Pulled from: Remotive {sources.remotive} · Muse{" "}
+                    {sources.muse} · Adzuna {sources.adzuna}
+                  </span>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {results.map((j) => (
