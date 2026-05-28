@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
   // allow an admin to trigger it manually.
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  const fromCron = Boolean(secret) && auth === `Bearer ${secret}`;
+  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+  const fromCron =
+    isVercelCron || (Boolean(secret) && auth === `Bearer ${secret}`);
   if (!fromCron) {
     const me = await getCurrentUser();
     if (!me || me.role !== "admin") {
