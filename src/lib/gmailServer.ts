@@ -112,7 +112,7 @@ export async function fetchApplications(): Promise<JobApplication[]> {
   // Tight query: drop promo/social inbox categories and require an
   // application-lifecycle phrase, so we pull real application mail — not alerts.
   const query = [
-    "newer_than:90d",
+    "newer_than:2y",
     "-category:promotions",
     "-category:social",
     "-category:forums",
@@ -127,38 +127,52 @@ export async function fetchApplications(): Promise<JobApplication[]> {
   const list = await gmail.users.messages.list({
     userId: "me",
     q: query,
-    maxResults: 100,
+    maxResults: 250,
   });
 
-  const messages = list.data.messages ?? [];
+  const ids = (list.data.messages ?? [])
+    .map((m) => m.id)
+    .filter((id): id is string => Boolean(id));
   const found: JobApplication[] = [];
 
-  for (const m of messages) {
-    if (!m.id) continue;
-    const msg = await gmail.users.messages.get({
-      userId: "me",
-      id: m.id,
-      format: "metadata",
-      metadataHeaders: ["Subject", "From", "Date"],
-    });
-    const headers = msg.data.payload?.headers ?? [];
-    const subject = header(headers, "Subject");
-    const from = header(headers, "From");
-    const snippet = msg.data.snippet ?? "";
-    const status = classifyEmail({ subject, from, snippet });
-    if (!status) continue;
+  // Fetch message metadata in parallel batches to stay within the time limit.
+  const BATCH = 20;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i + BATCH);
+    const msgs = await Promise.all(
+      batch.map((id) =>
+        gmail.users.messages
+          .get({
+            userId: "me",
+            id,
+            format: "metadata",
+            metadataHeaders: ["Subject", "From", "Date"],
+          })
+          .then((r) => r.data)
+          .catch(() => null)
+      )
+    );
+    for (const data of msgs) {
+      if (!data?.id) continue;
+      const headers = data.payload?.headers ?? [];
+      const subject = header(headers, "Subject");
+      const from = header(headers, "From");
+      const snippet = data.snippet ?? "";
+      const status = classifyEmail({ subject, from, snippet });
+      if (!status) continue;
 
-    const dateMs = Number(msg.data.internalDate ?? Date.now());
-    found.push({
-      id: m.id,
-      company: extractCompany(subject, from),
-      role: extractRole(subject) || "Role not specified",
-      status,
-      date: new Date(dateMs).toISOString(),
-      source: "gmail",
-      emailSubject: subject,
-      emailFrom: from,
-    });
+      const dateMs = Number(data.internalDate ?? Date.now());
+      found.push({
+        id: data.id,
+        company: extractCompany(subject, from),
+        role: extractRole(subject) || "Role not specified",
+        status,
+        date: new Date(dateMs).toISOString(),
+        source: "gmail",
+        emailSubject: subject,
+        emailFrom: from,
+      });
+    }
   }
 
   // de-dupe by company+role, keeping the most advanced/recent status
