@@ -136,9 +136,9 @@ async function fetchMuse(
 ): Promise<NormalizedJob[]> {
   const category = museCategory(q);
   if (!category) return [];
-  // Pull more pages to widen the pool (~120 results).
+  // Pull 10 pages to widen the pool (~200 results).
   const pages = await Promise.all(
-    [0, 1, 2, 3, 4, 5].map((page) =>
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((page) =>
       fetch(
         `https://www.themuse.com/api/public/jobs?category=${encodeURIComponent(category)}&page=${page}`,
         { signal }
@@ -237,7 +237,7 @@ async function fetchAdzuna(
   if (!q) return { jobs: [], status: "empty query" };
 
   const COUNTRIES = ["us", "ca"] as const;
-  const PAGES = [1, 2, 3];
+  const PAGES = [1, 2, 3, 4, 5, 6, 7, 8];
   const tasks = COUNTRIES.flatMap((country) =>
     PAGES.map(async (page) => {
       // Search for "remote <query>" to bias toward remote postings; geo
@@ -371,7 +371,7 @@ export async function GET(req: NextRequest) {
     filtered = Array.from(byRole.values());
 
     return NextResponse.json({
-      jobs: filtered.slice(0, 200),
+      jobs: filtered.slice(0, 500),
       sources: {
         remotive: remotive.length,
         muse: muse.length,
