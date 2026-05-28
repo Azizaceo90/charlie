@@ -69,6 +69,7 @@ export default function JobSearchPage() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [tailorJob, setTailorJob] = useState<LiveJob | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [sources, setSources] = useState<{
     remotive: number;
     muse: number;
@@ -81,6 +82,7 @@ export default function JobSearchPage() {
   const runSearch = useCallback(async (q: string, loc: string) => {
     setLoading(true);
     setError(null);
+    setLastUpdated(null);
     try {
       const params = new URLSearchParams({ q });
       if (loc.trim()) params.set("loc", loc.trim());
@@ -98,7 +100,25 @@ export default function JobSearchPage() {
   }, []);
 
   useEffect(() => {
-    runSearch(query, location);
+    // On first load, prefer cached results from the daily cron (instant);
+    // fall back to a live search if there's no cache yet.
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/jobs/cached?q=${encodeURIComponent(defaultQuery)}`
+        );
+        const d = await r.json();
+        if (Array.isArray(d.jobs) && d.jobs.length > 0) {
+          setResults(d.jobs);
+          setLastUpdated(d.fetchedAt ?? null);
+          setSources(null);
+          return;
+        }
+      } catch {
+        /* fall through to live */
+      }
+      runSearch(defaultQuery, location);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -225,8 +245,11 @@ export default function JobSearchPage() {
             />
           ) : (
             <>
-              <div className="mb-3 flex items-center justify-between text-xs text-neutral-500">
-                <span>{results.length} live listings</span>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+                <span>
+                  {results.length} listings
+                  {lastUpdated && ` · auto-updated ${ago(lastUpdated)}`}
+                </span>
                 {sources && (
                   <span>
                     Remotive {sources.remotive} · Muse {sources.muse} · Adzuna{" "}

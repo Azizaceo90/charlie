@@ -101,6 +101,13 @@ model Applicant {
   location  String?
 }
 
+model JobCache {
+  id        String   @id @default(cuid())
+  queryKey  String   @unique
+  data      String // JSON-encoded jobs array
+  fetchedAt DateTime @default(now()) @updatedAt
+}
+
 model GmailToken {
   id         String    @id @default("default")
   tokens     String // JSON-encoded OAuth credentials
