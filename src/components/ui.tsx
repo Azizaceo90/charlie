@@ -115,13 +115,13 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
-        className={`card my-8 w-full ${
+        className={`card my-8 flex w-full ${
           wide ? "max-w-4xl" : "max-w-lg"
-        } overflow-hidden`}
+        } max-h-[calc(100vh-4rem)] flex-col overflow-hidden`}
       >
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
           <button
             onClick={onClose}
@@ -130,7 +130,7 @@ export function Modal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );
