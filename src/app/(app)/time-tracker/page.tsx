@@ -18,7 +18,7 @@ const PROJECTS = [
   "Meetings",
 ];
 const APP_SPEC_PROJECTS = ["Applications"];
-const MEDICAL_PROJECTS = ["Coding"];
+const MEDICAL_PROJECTS = ["St Bernards"];
 
 function projectsFor(title?: string | null): string[] {
   if (title === "Application Specialist") return APP_SPEC_PROJECTS;
