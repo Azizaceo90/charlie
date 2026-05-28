@@ -31,20 +31,33 @@ interface LiveJob {
   isNew?: boolean;
 }
 
-const SALES_QUICK = [
-  "SDR",
-  "BDR",
-  "Founding BDR",
-  "Sales Development Representative",
-  "Account Executive",
-];
-const MEDICAL_QUICK = [
-  "Medical Coder",
-  "Medical Coding Specialist",
-  "Risk Adjustment Coder",
-  "Outpatient Coder",
-  "Medical Biller",
-];
+const CATEGORIES = {
+  sales: {
+    label: "Sales",
+    defaultQuery: "Sales Development Representative",
+    quick: [
+      "SDR",
+      "BDR",
+      "Founding BDR",
+      "Sales Development Representative",
+      "Account Executive",
+    ],
+    placeholder: "Search roles, e.g. SDR, BDR, Founding BDR",
+  },
+  medical: {
+    label: "Medical Coding",
+    defaultQuery: "Medical Coder",
+    quick: [
+      "Medical Coder",
+      "Medical Coding Specialist",
+      "Risk Adjustment Coder",
+      "Outpatient Coder",
+      "Medical Biller",
+    ],
+    placeholder: "Search roles, e.g. Medical Coder, Risk Adjustment",
+  },
+} as const;
+type Category = keyof typeof CATEGORIES;
 
 type Tab = "search" | "saved";
 
@@ -57,12 +70,15 @@ export default function JobSearchPage() {
     addApplication,
     currentUser,
   } = useData();
-  const isMedical = currentUser?.title === "Medical Coder";
-  const QUICK = isMedical ? MEDICAL_QUICK : SALES_QUICK;
-  const defaultQuery = isMedical ? "Medical Coder" : "Sales Development Representative";
+  const isAdmin = currentUser?.role === "admin";
+  const initialCategory: Category =
+    currentUser?.title === "Medical Coder" ? "medical" : "sales";
+
+  const [category, setCategory] = useState<Category>(initialCategory);
+  const cfg = CATEGORIES[category];
 
   const [tab, setTab] = useState<Tab>("search");
-  const [query, setQuery] = useState(defaultQuery);
+  const [query, setQuery] = useState<string>(cfg.defaultQuery);
   const [location, setLocation] = useState("");
   const [results, setResults] = useState<LiveJob[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,26 +116,32 @@ export default function JobSearchPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // On first load, prefer cached results from the daily cron (instant);
-    // fall back to a live search if there's no cache yet.
-    (async () => {
+  const loadForCategory = useCallback(
+    async (c: Category) => {
+      const dq = CATEGORIES[c].defaultQuery;
+      setQuery(dq);
+      // Prefer the cached snapshot from the daily cron (instant); fall back
+      // to a live search if no cache yet.
       try {
-        const r = await fetch(
-          `/api/jobs/cached?q=${encodeURIComponent(defaultQuery)}`
-        );
+        const r = await fetch(`/api/jobs/cached?q=${encodeURIComponent(dq)}`);
         const d = await r.json();
         if (Array.isArray(d.jobs) && d.jobs.length > 0) {
           setResults(d.jobs);
           setLastUpdated(d.fetchedAt ?? null);
           setSources(null);
+          setError(null);
           return;
         }
       } catch {
         /* fall through to live */
       }
-      runSearch(defaultQuery, location);
-    })();
+      runSearch(dq, location);
+    },
+    [location, runSearch]
+  );
+
+  useEffect(() => {
+    loadForCategory(initialCategory);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -179,16 +201,32 @@ export default function JobSearchPage() {
       {tab === "search" ? (
         <>
           <Card className="mb-4 p-4">
+            {isAdmin && (
+              <div className="mb-3 inline-flex gap-1 rounded-lg border border-line bg-bg-soft p-1">
+                {(Object.keys(CATEGORIES) as Category[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setCategory(c);
+                      loadForCategory(c);
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      category === c
+                        ? "bg-brand text-white"
+                        : "text-neutral-600 hover:bg-bg-hover"
+                    }`}
+                  >
+                    {CATEGORIES[c].label}
+                  </button>
+                ))}
+              </div>
+            )}
             <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                 <input
                   className="input pl-9"
-                  placeholder={
-                    isMedical
-                      ? "Search roles, e.g. Medical Coder, Risk Adjustment"
-                      : "Search roles, e.g. SDR, BDR, Founding BDR"
-                  }
+                  placeholder={cfg.placeholder}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -212,7 +250,7 @@ export default function JobSearchPage() {
               </button>
             </form>
             <div className="mt-3 flex flex-wrap gap-2">
-              {QUICK.map((q) => (
+              {cfg.quick.map((q) => (
                 <button
                   key={q}
                   onClick={() => {
