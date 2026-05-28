@@ -17,8 +17,13 @@ import { ago } from "@/lib/format";
 export default function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, notifications, unreadCount, markNotificationsRead } =
-    useData();
+  const {
+    currentUser,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
+    refreshNotifications,
+  } = useData();
   const [open, setOpen] = useState(false);
   if (!currentUser) return null;
 
@@ -29,7 +34,10 @@ export default function Topbar() {
   function toggle() {
     const next = !open;
     setOpen(next);
-    if (next && unreadCount > 0) markNotificationsRead();
+    if (next) {
+      refreshNotifications();
+      if (unreadCount > 0) markNotificationsRead();
+    }
   }
 
   return (

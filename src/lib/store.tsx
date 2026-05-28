@@ -69,6 +69,7 @@ interface AppData {
   notifications: AppNotification[];
   unreadCount: number;
   markNotificationsRead: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 
   applications: JobApplication[];
   addApplication: (input: Omit<JobApplication, "id">) => Promise<JobApplication>;
@@ -225,6 +226,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications ?? []);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Poll for new notifications so they appear without a full reload.
+  useEffect(() => {
+    if (!currentUser) return;
+    const t = setInterval(refreshNotifications, 20000);
+    const onFocus = () => refreshNotifications();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [currentUser, refreshNotifications]);
+
   // ── Applications ──
   const addApplication = useCallback(async (input: Omit<JobApplication, "id">) => {
     const created = await apiCreate<JobApplication>("applications", input);
@@ -326,6 +351,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     notifications,
     unreadCount: notifications.filter((n) => !n.read).length,
     markNotificationsRead,
+    refreshNotifications,
     applications,
     addApplication,
     removeApplication,
