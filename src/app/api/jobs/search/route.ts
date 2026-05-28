@@ -148,13 +148,13 @@ function museCategory(q: string): string | null {
   return null;
 }
 
-/** True when a job is remote AND open to candidates in the US or Canada. */
-function isRemoteUsCanada(loc: string, source: NormalizedJob["source"]): boolean {
+/** True when a job is remote AND explicitly open to US or Canada candidates. */
+function isRemoteUsCanada(loc: string, _source: NormalizedJob["source"]): boolean {
   const x = (loc || "").trim().toLowerCase();
-  if (!x) return source === "remotive"; // Remotive is a remote-only board.
-  // Reject locations restricted to other regions — unless they also list US/CA.
+  if (!x) return false; // require an explicit US/CA signal
+  // Reject locations that mention non-NA regions, even alongside "remote".
   if (
-    /\b(emea|europe|eu only|latam|latin america|apac|asia|africa|australia|new zealand|middle east|india|brazil|argentina|mexico|colombia|chile|peru|uk only|ireland only|germany|france|italy|spain|netherlands|sweden|portugal|poland|romania|ukraine|israel)\b/.test(
+    /\b(emea|europe|eu only|latam|latin america|apac|asia|africa|australia|new zealand|middle east|india|brazil|argentina|mexico|colombia|chile|peru|uk only|ireland only|germany|france|italy|spain|netherlands|sweden|portugal|poland|romania|ukraine|israel|philippines|south africa)\b/.test(
       x
     )
   ) {
@@ -162,14 +162,10 @@ function isRemoteUsCanada(loc: string, source: NormalizedJob["source"]): boolean
       x
     );
   }
-  // Accept anywhere-remote
-  if (/\b(remote|anywhere|worldwide|global|flexible)\b/.test(x)) return true;
-  // Accept US/Canada/regional names
-  if (/\b(usa?|u\.s\.|united states|america|canada|north america|americas)\b/.test(x))
-    return true;
-  // Muse country-only fields
-  if (source === "muse" && /^(united states|canada)$/.test(x)) return true;
-  return false;
+  // Must explicitly mention US or Canada.
+  return /\b(usa?|u\.s\.|united states|america|canada|north america|americas)\b/.test(
+    x
+  );
 }
 
 async function fetchRemotive(
