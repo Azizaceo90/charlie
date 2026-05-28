@@ -17,6 +17,14 @@ const PROJECTS = [
   "Admin",
   "Meetings",
 ];
+const APP_SPEC_PROJECTS = ["Applications"];
+const MEDICAL_PROJECTS = ["Coding"];
+
+function projectsFor(title?: string | null): string[] {
+  if (title === "Application Specialist") return APP_SPEC_PROJECTS;
+  if (title === "Medical Coder") return MEDICAL_PROJECTS;
+  return PROJECTS;
+}
 
 function entryMinutes(e: TimeEntry, now: number): number {
   const end = e.clockOut ? new Date(e.clockOut).getTime() : now;
@@ -41,7 +49,8 @@ function PersonalTracker() {
   const { currentUser, timeEntries, addTimeEntry, updateTimeEntry, removeTimeEntry } =
     useData();
   const [tick, setTick] = useState(Date.now());
-  const [project, setProject] = useState(PROJECTS[0]);
+  const projects = projectsFor(currentUser?.title);
+  const [project, setProject] = useState(projects[0]);
   const [note, setNote] = useState("");
   const [range, setRange] = useState<RangeKey>("7days");
   const [showAdd, setShowAdd] = useState(false);
@@ -137,7 +146,7 @@ function PersonalTracker() {
                   value={project}
                   onChange={(e) => setProject(e.target.value)}
                 >
-                  {PROJECTS.map((p) => (
+                  {projects.map((p) => (
                     <option key={p}>{p}</option>
                   ))}
                 </select>
@@ -253,7 +262,7 @@ function PersonalTracker() {
       <ManualEntryModal
         open={showAdd}
         onClose={() => setShowAdd(false)}
-        projects={PROJECTS}
+        projects={projects}
       />
     </div>
   );
