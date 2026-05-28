@@ -34,7 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/applications", label: "Job Applications", icon: Briefcase, color: "#00c875", adminOnly: true, extraTitles: ["Application Specialist"], group: "Personal" },
   { href: "/time-tracker", label: "Time Tracker", icon: Clock, color: "#579bfc", group: "Personal" },
   { href: "/insights", label: "Insights", icon: LineChart, color: "#a25ddc", adminOnly: true, group: "Personal" },
-  { href: "/job-search", label: "Job Search", icon: Search, color: "#00d2d2", adminOnly: true, extraTitles: ["Application Specialist", "Medical Coder"], group: "Personal" },
+  { href: "/job-search", label: "Job Search", icon: Search, color: "#00d2d2", adminOnly: true, extraTitles: ["Application Specialist"], group: "Personal" },
   { href: "/documents", label: "Document Studio", icon: Wand2, color: "#06b6d4", titlesOnly: ["Application Specialist"], group: "Personal" },
   { href: "/account", label: "My Account", icon: UserCircle, color: "#22c55e", group: "Personal" },
   { href: "/sops", label: "SOPs", icon: FileText, color: "#ff5ac4", group: "Workspace" },
