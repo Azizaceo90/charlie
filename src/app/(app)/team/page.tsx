@@ -105,7 +105,7 @@ function AddEmployeeModal({
   const { addUser } = useData();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState("Medical Coder");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("employee");
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +120,7 @@ function AddEmployeeModal({
   function reset() {
     setName("");
     setEmail("");
-    setTitle("");
+    setTitle("Medical Coder");
     setPassword("");
     setRole("employee");
     setError(null);
@@ -216,12 +216,14 @@ function AddEmployeeModal({
             </div>
             <div>
               <label className="label">Title</label>
-              <input
+              <select
                 className="input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Recruiter"
-              />
+              >
+                <option value="Medical Coder">Medical Coder</option>
+                <option value="Application Specialist">Application Specialist</option>
+              </select>
             </div>
           </div>
           <div>
