@@ -91,6 +91,28 @@ export interface SopDoc {
 }
 
 // ── Contracts ────────────────────────────────────────────────────────────────
+export interface ContractField {
+  id: string;
+  type: "name" | "date" | "signature" | "address" | "phone";
+  /** 1-based page index this field sits on */
+  page: number;
+  /** Position + size as a fraction of the page width/height (top-left origin). */
+  xRatio: number;
+  yRatio: number;
+  wRatio: number;
+  hRatio: number;
+}
+
+export function parseContractFields(json?: string | null): ContractField[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? (v as ContractField[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export interface Contract {
   id: string;
   title: string;
@@ -100,6 +122,8 @@ export interface Contract {
   status: "pending" | "signed";
   fileName: string;
   dataUrl: string;
+  /** JSON array of fillable field positions */
+  fields?: string | null;
   issuedAt: string;
   signedAt?: string;
   /** base64 data URL of the drawn signature */

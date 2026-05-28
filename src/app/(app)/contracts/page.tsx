@@ -9,10 +9,12 @@ import {
   Clock,
 } from "lucide-react";
 import { useData } from "@/lib/store";
-import { Contract } from "@/lib/types";
+import { Contract, ContractField, parseContractFields } from "@/lib/types";
 import { Card, EmptyState, Modal, PageHeader } from "@/components/ui";
 import PdfViewer from "@/components/PdfViewer";
 import SignaturePad from "@/components/SignaturePad";
+import ContractFieldEditor from "@/components/ContractFieldEditor";
+import ContractSignViewer from "@/components/ContractSignViewer";
 import { ago, dateOnly } from "@/lib/format";
 
 export default function ContractsPage() {
@@ -45,6 +47,7 @@ export default function ContractsPage() {
     fullName?: string;
     address?: string;
     phone?: string;
+    fieldValues?: Record<string, string>;
   }) {
     if (!selected || !currentUser) return;
     signContract(selected.id, body);
@@ -188,7 +191,7 @@ export default function ContractsPage() {
               ) : canSign ? (
                 <SignPanel
                   onSign={sign}
-                  contractTitle={selected.title}
+                  contract={selected}
                   defaultName={currentUser?.name ?? ""}
                 />
               ) : (
@@ -226,7 +229,7 @@ export default function ContractsPage() {
 
 function SignPanel({
   onSign,
-  contractTitle,
+  contract,
   defaultName,
 }: {
   onSign: (body: {
@@ -234,21 +237,46 @@ function SignPanel({
     fullName?: string;
     address?: string;
     phone?: string;
+    fieldValues?: Record<string, string>;
   }) => void;
-  contractTitle: string;
+  contract: Contract;
   defaultName: string;
 }) {
+  const placedFields = parseContractFields(contract.fields);
+  const hasFields = placedFields.length > 0;
+
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    const today = new Date().toLocaleDateString("en-US");
+    placedFields.forEach((f) => {
+      if (f.type === "name") out[f.id] = defaultName;
+      else if (f.type === "date") out[f.id] = today;
+    });
+    return out;
+  });
+
   const [signature, setSignature] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [fullName, setFullName] = useState(defaultName);
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
 
-  const canSign =
-    Boolean(signature) &&
-    agreed &&
-    fullName.trim().length > 0 &&
-    address.trim().length > 0;
+  const fieldSignature = placedFields.find((f) => f.type === "signature");
+  const fieldSignatureValue = fieldSignature
+    ? fieldValues[fieldSignature.id]
+    : undefined;
+
+  const fieldsComplete = placedFields.every((f) => {
+    const v = fieldValues[f.id];
+    return Boolean(v && v.length);
+  });
+
+  const canSign = hasFields
+    ? agreed && fieldsComplete
+    : Boolean(signature) &&
+      agreed &&
+      fullName.trim().length > 0 &&
+      address.trim().length > 0;
 
   return (
     <div className="mt-4 rounded-lg border border-brand/30 bg-brand/5 p-4">
@@ -256,38 +284,54 @@ function SignPanel({
         <PenLine className="h-4 w-4 text-brand-soft" /> Sign this contract
       </div>
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Full legal name</label>
-          <input
-            className="input"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="First Last"
+      {hasFields ? (
+        <div className="mb-3">
+          <div className="mb-2 text-xs font-medium text-neutral-500">
+            Fill in each highlighted field on the document below.
+          </div>
+          <ContractSignViewer
+            pdfDataUrl={contract.dataUrl}
+            fields={placedFields}
+            values={fieldValues}
+            onChange={setFieldValues}
           />
         </div>
-        <div>
-          <label className="label">Phone</label>
-          <input
-            className="input"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(555) 555-5555"
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label">Address</label>
-          <input
-            className="input"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Street, City, State ZIP"
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label">Full legal name</label>
+              <input
+                className="input"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="First Last"
+              />
+            </div>
+            <div>
+              <label className="label">Phone</label>
+              <input
+                className="input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 555-5555"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label">Address</label>
+              <input
+                className="input"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Street, City, State ZIP"
+              />
+            </div>
+          </div>
 
-      <div className="mb-1 text-xs font-medium text-neutral-500">Signature</div>
-      <SignaturePad onChange={setSignature} />
+          <div className="mb-1 text-xs font-medium text-neutral-500">Signature</div>
+          <SignaturePad onChange={setSignature} />
+        </>
+      )}
 
       <label className="mt-3 flex items-start gap-2 text-xs text-neutral-700">
         <input
@@ -297,7 +341,7 @@ function SignPanel({
           className="mt-0.5 h-4 w-4 rounded border-line bg-bg-soft accent-brand"
         />
         <span>
-          I have read and agree to the terms of <strong>{contractTitle}</strong>,
+          I have read and agree to the terms of <strong>{contract.title}</strong>,
           and my electronic signature is legally binding.
         </span>
       </label>
@@ -305,15 +349,22 @@ function SignPanel({
         <button
           className="btn-primary"
           disabled={!canSign}
-          onClick={() =>
-            signature &&
-            onSign({
-              signatureDataUrl: signature,
-              fullName: fullName.trim(),
-              address: address.trim(),
-              phone: phone.trim() || undefined,
-            })
-          }
+          onClick={() => {
+            if (hasFields) {
+              const sig = fieldSignatureValue ?? signature ?? "";
+              onSign({
+                signatureDataUrl: sig,
+                fieldValues,
+              });
+            } else if (signature) {
+              onSign({
+                signatureDataUrl: signature,
+                fullName: fullName.trim(),
+                address: address.trim(),
+                phone: phone.trim() || undefined,
+              });
+            }
+          }}
         >
           <PenLine className="h-4 w-4" /> Agree &amp; sign
         </button>
@@ -338,12 +389,14 @@ function IssueModal({
   const [assignee, setAssignee] = useState(employees[0]?.id ?? "");
   const [fileName, setFileName] = useState("");
   const [dataUrl, setDataUrl] = useState("");
+  const [fields, setFields] = useState<ContractField[]>([]);
   const [error, setError] = useState("");
 
   function reset() {
     setTitle("");
     setFileName("");
     setDataUrl("");
+    setFields([]);
     setError("");
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -380,6 +433,7 @@ function IssueModal({
       status: "pending",
       fileName: fileName || `${title}.pdf`,
       dataUrl,
+      fields: fields.length ? JSON.stringify(fields) : null,
       issuedAt: new Date().toISOString(),
     });
     reset();
@@ -394,6 +448,7 @@ function IssueModal({
         onClose();
       }}
       title="Issue a contract"
+      wide
     >
       <div className="space-y-4">
         <div>
@@ -432,6 +487,23 @@ function IssueModal({
             ))}
           </select>
         </div>
+        {dataUrl && (
+          <div className="rounded-lg border border-line bg-bg-soft p-3">
+            <div className="mb-2 text-sm font-semibold text-neutral-900">
+              Place fields on the document
+            </div>
+            <ContractFieldEditor
+              pdfDataUrl={dataUrl}
+              value={fields}
+              onChange={setFields}
+            />
+            <p className="mt-2 text-[11px] text-neutral-500">
+              Optional. If you don't add any fields, the employee will sign
+              with the standard name / address / phone form below the signature.
+            </p>
+          </div>
+        )}
+
         {error && <p className="text-xs text-accent-red">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button

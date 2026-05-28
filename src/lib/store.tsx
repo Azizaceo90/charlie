@@ -131,6 +131,7 @@ interface AppData {
       fullName?: string;
       address?: string;
       phone?: string;
+      fieldValues?: Record<string, string>;
     }
   ) => Promise<void>;
 
@@ -496,6 +497,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fullName?: string;
         address?: string;
         phone?: string;
+        fieldValues?: Record<string, string>;
       }
     ) => {
       const res = await fetch(`/api/contracts/${id}/sign`, {

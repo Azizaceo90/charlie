@@ -16,6 +16,13 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as Record<string, unknown>;
   delete body.id;
 
+  const fieldsValue =
+    typeof body.fields === "string"
+      ? body.fields
+      : Array.isArray(body.fields)
+        ? JSON.stringify(body.fields)
+        : null;
+
   const contract = await prisma.contract.create({
     data: {
       title: String(body.title ?? "Contract"),
@@ -24,6 +31,7 @@ export async function POST(req: NextRequest) {
       status: "pending",
       fileName: String(body.fileName ?? "contract.pdf"),
       dataUrl: String(body.dataUrl ?? ""),
+      fields: fieldsValue,
       issuedAt: body.issuedAt ? new Date(String(body.issuedAt)) : new Date(),
     },
   });

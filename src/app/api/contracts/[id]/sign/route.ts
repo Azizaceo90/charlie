@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { stampSignature } from "@/lib/pdfSign";
+import { stampFieldsInPdf, stampSignature } from "@/lib/pdfSign";
+import { parseContractFields } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,12 +15,14 @@ export async function POST(
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { signatureDataUrl, fullName, address, phone } = (await req.json()) as {
-    signatureDataUrl?: string;
-    fullName?: string;
-    address?: string;
-    phone?: string;
-  };
+  const { signatureDataUrl, fullName, address, phone, fieldValues } =
+    (await req.json()) as {
+      signatureDataUrl?: string;
+      fullName?: string;
+      address?: string;
+      phone?: string;
+      fieldValues?: Record<string, string>;
+    };
   if (!signatureDataUrl) {
     return NextResponse.json({ error: "Signature is required." }, { status: 400 });
   }
@@ -38,16 +41,20 @@ export async function POST(
     return NextResponse.json(contract);
 
   const signer = fullName?.trim() || me.name;
-  const stamped = await stampSignature(
-    contract.dataUrl,
-    signatureDataUrl,
-    signer,
-    {
+
+  // If the contract has placed fields, stamp those at their positions; the
+  // legacy block at the bottom is appended only when there are no fields.
+  const placed = parseContractFields(contract.fields);
+  let stamped = contract.dataUrl;
+  if (placed.length > 0 && fieldValues) {
+    stamped = await stampFieldsInPdf(stamped, placed, fieldValues);
+  } else {
+    stamped = await stampSignature(stamped, signatureDataUrl, signer, {
       fullName: fullName?.trim() || me.name,
       address: address?.trim(),
       phone: phone?.trim(),
-    }
-  );
+    });
+  }
 
   const updated = await prisma.contract.update({
     where: { id: params.id },

@@ -114,6 +114,7 @@ model Contract {
   status           String // pending | signed
   fileName         String
   dataUrl          String
+  fields           String? // JSON array of fillable field placements
   issuedAt         DateTime  @default(now())
   signedAt         DateTime?
   signatureDataUrl String?
@@ -121,14 +122,18 @@ model Contract {
 }
 
 model Applicant {
-  id        String   @id @default(cuid())
-  name      String
-  email     String
-  role      String
-  stage     String // applied | screening | assessment | interview | offer | hired | rejected
-  appliedAt DateTime @default(now())
-  rating    Int?
-  location  String?
+  id              String   @id @default(cuid())
+  name            String
+  email           String
+  role            String
+  stage           String // applied | screening | assessment | interview | offer | hired | rejected
+  appliedAt       DateTime @default(now())
+  rating          Int?
+  location        String?
+  phone           String?
+  source          String? // "facebook" | "manual" | other
+  facebookLeadId  String?  @unique
+  formData        String?  // JSON of the raw lead form fields
 }
 
 model JobCache {

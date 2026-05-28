@@ -1,9 +1,84 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { ContractField } from "./types";
 
 export interface SignerFields {
   fullName?: string;
   address?: string;
   phone?: string;
+}
+
+/**
+ * Stamps values directly at the field positions the admin placed on the
+ * contract PDF. Coordinates are stored as ratios of the page size, so we
+ * map them to the actual PDF point units of each page.
+ */
+export async function stampFieldsInPdf(
+  pdfDataUrl: string,
+  fields: ContractField[],
+  values: Record<string, string>
+): Promise<string> {
+  if (!fields.length) return pdfDataUrl;
+  try {
+    const pdfBytes = Buffer.from(pdfDataUrl.split(",")[1] ?? "", "base64");
+    const pdf = await PDFDocument.load(pdfBytes);
+    const pages = pdf.getPages();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const ink = rgb(0.05, 0.05, 0.1);
+
+    for (const f of fields) {
+      const value = values[f.id];
+      if (!value) continue;
+      const page = pages[(f.page ?? 1) - 1];
+      if (!page) continue;
+      const { width: pw, height: ph } = page.getSize();
+      const x = f.xRatio * pw;
+      const w = f.wRatio * pw;
+      const h = f.hRatio * ph;
+      // PDF origin is bottom-left, ratios are top-left.
+      const y = ph - f.yRatio * ph - h;
+
+      if (f.type === "signature") {
+        try {
+          const b64 = value.split(",")[1] ?? "";
+          if (!b64) continue;
+          const bytes = Buffer.from(b64, "base64");
+          const img = value.includes("image/jpeg")
+            ? await pdf.embedJpg(bytes)
+            : await pdf.embedPng(bytes);
+          // Fit signature inside the box preserving aspect ratio.
+          const ratio = img.height / img.width;
+          let drawW = w;
+          let drawH = drawW * ratio;
+          if (drawH > h) {
+            drawH = h;
+            drawW = drawH / ratio;
+          }
+          page.drawImage(img, {
+            x: x + (w - drawW) / 2,
+            y: y + (h - drawH) / 2,
+            width: drawW,
+            height: drawH,
+          });
+        } catch {
+          /* skip bad signature image */
+        }
+      } else {
+        const size = Math.min(h * 0.65, 12);
+        page.drawText(value, {
+          x: x + 2,
+          y: y + (h - size) / 2,
+          size,
+          font,
+          color: ink,
+        });
+      }
+    }
+
+    const out = await pdf.save();
+    return `data:application/pdf;base64,${Buffer.from(out).toString("base64")}`;
+  } catch {
+    return pdfDataUrl;
+  }
 }
 
 /**
