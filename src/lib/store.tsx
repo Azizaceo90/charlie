@@ -64,7 +64,8 @@ interface AppData {
     password: string;
     role: string;
     title?: string;
-  }) => Promise<{ user?: User; error?: string }>;
+  }) => Promise<{ user?: User; emailed?: boolean; error?: string }>;
+  removeUser: (id: string) => Promise<string | null>;
 
   notifications: AppNotification[];
   unreadCount: number;
@@ -212,10 +213,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (!res.ok) return { error: data.error ?? "Failed to add user." };
       setUsers((prev) => [...prev, data.user]);
-      return { user: data.user as User };
+      return { user: data.user as User, emailed: Boolean(data.emailed) };
     },
     []
   );
+
+  const removeUser = useCallback(async (id: string): Promise<string | null> => {
+    const res = await fetch(`/api/auth/users/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return data.error ?? "Failed to remove user.";
+    }
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    return null;
+  }, []);
 
   const markNotificationsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -348,6 +359,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     addUser,
+    removeUser,
     notifications,
     unreadCount: notifications.filter((n) => !n.read).length,
     markNotificationsRead,

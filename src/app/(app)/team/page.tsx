@@ -1,13 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Shield, User as UserIcon } from "lucide-react";
+import { Plus, Shield, Trash2, User as UserIcon } from "lucide-react";
 import { useData } from "@/lib/store";
 import { Card, EmptyState, Modal, PageHeader } from "@/components/ui";
 
 export default function TeamPage() {
-  const { currentUser, users } = useData();
+  const { currentUser, users, removeUser } = useData();
   const [showAdd, setShowAdd] = useState(false);
+
+  async function handleDelete(id: string, name: string) {
+    if (
+      !window.confirm(
+        `Remove ${name}? This permanently deletes their account and any contracts assigned to them.`
+      )
+    )
+      return;
+    const err = await removeUser(id);
+    if (err) window.alert(err);
+  }
 
   if (currentUser?.role !== "admin") {
     return (
@@ -65,6 +76,15 @@ export default function TeamPage() {
                 )}
                 {u.role}
               </span>
+              {u.id !== currentUser?.id && (
+                <button
+                  onClick={() => handleDelete(u.id, u.name)}
+                  className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-accent-red"
+                  title="Remove user"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -90,9 +110,11 @@ function AddEmployeeModal({
   const [role, setRole] = useState("employee");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(
-    null
-  );
+  const [created, setCreated] = useState<{
+    email: string;
+    password: string;
+    emailed: boolean;
+  } | null>(null);
 
   function reset() {
     setName("");
@@ -123,7 +145,11 @@ function AddEmployeeModal({
       setError(res.error);
       return;
     }
-    setCreated({ email: email.trim(), password });
+    setCreated({
+      email: email.trim(),
+      password,
+      emailed: Boolean(res.emailed),
+    });
   }
 
   return (
@@ -140,8 +166,9 @@ function AddEmployeeModal({
           <div className="rounded-lg border border-accent-green/30 bg-accent-green/10 p-4 text-sm">
             <div className="font-medium text-neutral-900">Account created</div>
             <p className="mt-1 text-neutral-600">
-              Share these credentials with the employee. They sign in at the
-              login page.
+              {created.emailed
+                ? `An invite email was sent to ${created.email}. You can also share these credentials directly:`
+                : "Email isn't set up yet, so share these credentials with the employee — they sign in at the login page:"}
             </p>
             <div className="mt-3 space-y-1 text-neutral-700">
               <div>

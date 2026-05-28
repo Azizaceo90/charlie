@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hashPassword, publicUser } from "@/lib/auth";
+import { inviteEmailHtml, sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,5 +49,18 @@ export async function POST(req: NextRequest) {
       passwordHash: await hashPassword(password),
     },
   });
-  return NextResponse.json({ user: publicUser(user) }, { status: 201 });
+
+  const emailed = await sendEmail({
+    to: user.email,
+    subject: "You've been invited to Career Ops",
+    html: inviteEmailHtml({
+      name: user.name,
+      email: user.email,
+      password,
+      loginUrl: `${req.nextUrl.origin}/login`,
+      inviter: admin.name,
+    }),
+  });
+
+  return NextResponse.json({ user: publicUser(user), emailed }, { status: 201 });
 }
