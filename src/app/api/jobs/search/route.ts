@@ -45,7 +45,7 @@ async function fetchJSearch(
     const url =
       `https://jsearch.p.rapidapi.com/search` +
       `?query=${encodeURIComponent(q + " remote")}` +
-      `&page=1&num_pages=3&remote_jobs_only=true&country=${country}`;
+      `&page=1&num_pages=5&remote_jobs_only=true&country=${country}`;
     try {
       const r = await fetch(url, {
         signal,
