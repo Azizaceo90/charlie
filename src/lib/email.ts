@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 interface SendArgs {
   to: string;
   subject: string;
@@ -15,14 +17,56 @@ export interface SendResult {
   error?: string;
 }
 
-export async function sendEmail({
+export async function sendEmail(args: SendArgs): Promise<SendResult> {
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  if (gmailUser && gmailPass) return sendViaGmail(args, gmailUser, gmailPass);
+
+  if (process.env.RESEND_API_KEY) return sendViaResend(args);
+
+  return {
+    ok: false,
+    error: "Email isn't configured (set GMAIL_USER + GMAIL_APP_PASSWORD).",
+  };
+}
+
+async function sendViaGmail(
+  { to, subject, html, attachments }: SendArgs,
+  user: string,
+  pass: string
+): Promise<SendResult> {
+  try {
+    const transport = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass: pass.replace(/\s+/g, "") },
+    });
+    await transport.sendMail({
+      from: `"Career Ops" <${user}>`,
+      to,
+      subject,
+      html,
+      attachments: attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        encoding: "base64",
+      })),
+    });
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Gmail send failed.",
+    };
+  }
+}
+
+async function sendViaResend({
   to,
   subject,
   html,
   attachments,
 }: SendArgs): Promise<SendResult> {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return { ok: false, error: "Email is not configured (no RESEND_API_KEY)." };
+  const key = process.env.RESEND_API_KEY!;
   const from = process.env.EMAIL_FROM || "Career Ops <onboarding@resend.dev>";
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -71,7 +115,10 @@ export function contractEmailHtml(opts: {
 }
 
 export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return Boolean(
+    (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
+      process.env.RESEND_API_KEY
+  );
 }
 
 export function inviteEmailHtml(opts: {
