@@ -3,8 +3,8 @@ import type { OAuth2Client } from "google-auth-library";
 import { prisma } from "./prisma";
 import {
   classifyEmail,
-  companyFromSender,
-  roleFromSubject,
+  extractCompany,
+  extractRole,
 } from "./gmailClassify";
 import { JobApplication } from "./types";
 
@@ -109,12 +109,25 @@ export async function fetchApplications(): Promise<JobApplication[]> {
   client.setCredentials(stored.tokens);
   const gmail = google.gmail({ version: "v1", auth: client });
 
-  const query =
-    "newer_than:30d (application OR interview OR offer OR assessment OR applied OR candidate OR recruiter)";
+  // Tight query: drop promo/social inbox categories and require an
+  // application-lifecycle phrase, so we pull real application mail — not alerts.
+  const query = [
+    "newer_than:90d",
+    "-category:promotions",
+    "-category:social",
+    "-category:forums",
+    '("thank you for applying" OR "thanks for applying" OR "application received"',
+    'OR "we received your application" OR "your application to" OR "your application for"',
+    'OR "application was sent" OR "application has been received"',
+    'OR "interview invitation" OR "invite you to interview" OR "schedule your interview"',
+    'OR "phone screen" OR "online assessment" OR "coding challenge" OR "take-home"',
+    'OR "pleased to offer" OR "offer of employment" OR "offer letter"',
+    'OR "regret to inform" OR "move forward with your application")',
+  ].join(" ");
   const list = await gmail.users.messages.list({
     userId: "me",
     q: query,
-    maxResults: 80,
+    maxResults: 100,
   });
 
   const messages = list.data.messages ?? [];
@@ -138,8 +151,8 @@ export async function fetchApplications(): Promise<JobApplication[]> {
     const dateMs = Number(msg.data.internalDate ?? Date.now());
     found.push({
       id: m.id,
-      company: companyFromSender(from),
-      role: roleFromSubject(subject),
+      company: extractCompany(subject, from),
+      role: extractRole(subject) || "Role not specified",
       status,
       date: new Date(dateMs).toISOString(),
       source: "gmail",

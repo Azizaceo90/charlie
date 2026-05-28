@@ -10,6 +10,7 @@ import {
   Mail,
   Plus,
   RefreshCw,
+  Trash2,
   Trophy,
   Unplug,
 } from "lucide-react";
@@ -280,9 +281,10 @@ function ApplicationsInner() {
 }
 
 function ApplicationRow({ app, color }: { app: JobApplication; color: string }) {
+  const { removeApplication } = useData();
   return (
     <div
-      className="flex items-center gap-4 py-3.5 pr-5 pl-4 hover:bg-bg-hover/60"
+      className="group flex items-center gap-4 py-3.5 pr-3 pl-4 hover:bg-bg-hover/60"
       style={{ borderLeft: `4px solid ${color}` }}
     >
       <div
@@ -309,6 +311,13 @@ function ApplicationRow({ app, color }: { app: JobApplication; color: string }) 
         {relative(app.date)}
       </div>
       <StatusBadge status={app.status} />
+      <button
+        onClick={() => removeApplication(app.id)}
+        className="rounded-md p-1.5 text-neutral-400 opacity-0 transition-opacity hover:bg-bg-hover hover:text-accent-red group-hover:opacity-100"
+        title="Remove"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
 }
