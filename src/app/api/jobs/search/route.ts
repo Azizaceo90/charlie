@@ -230,46 +230,74 @@ interface AdzunaJob {
 async function fetchAdzuna(
   q: string,
   signal: AbortSignal
-): Promise<NormalizedJob[]> {
+): Promise<{ jobs: NormalizedJob[]; status: string }> {
   const id = process.env.ADZUNA_APP_ID;
   const key = process.env.ADZUNA_APP_KEY;
-  if (!id || !key || !q) return [];
-  const COUNTRIES = ["us", "ca"];
+  if (!id || !key) return { jobs: [], status: "keys not set in Vercel" };
+  if (!q) return { jobs: [], status: "empty query" };
+
+  const COUNTRIES = ["us", "ca"] as const;
   const PAGES = [1, 2, 3];
-  const calls: Promise<NormalizedJob[]>[] = [];
-  for (const country of COUNTRIES) {
-    for (const page of PAGES) {
+  const tasks = COUNTRIES.flatMap((country) =>
+    PAGES.map(async (page) => {
+      // Search for "remote <query>" to bias toward remote postings; geo
+      // filter is applied later, and we tag the location with the country.
       const url =
         `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}` +
         `?app_id=${id}&app_key=${key}&results_per_page=50` +
-        `&what=${encodeURIComponent(q)}&where=remote&content-type=application/json`;
-      calls.push(
-        fetch(url, { signal })
-          .then((r) => (r.ok ? r.json() : { results: [] }))
-          .then((d: { results?: AdzunaJob[] }) =>
-            (d.results ?? []).map(
-              (j): NormalizedJob => ({
-                id: `adzuna-${j.id}`,
-                title: j.title ?? "",
-                company: j.company?.display_name ?? "Unknown",
-                location:
-                  (j.location?.display_name ?? "Remote") +
-                  ` · ${country === "us" ? "United States" : "Canada"}`,
-                type: mapType(j.contract_time ?? j.contract_type ?? ""),
-                salary: formatSalary(j.salary_min, j.salary_max),
-                postedAt: j.created ?? new Date().toISOString(),
-                url: j.redirect_url ?? "",
-                description: shortDesc(stripHtml(j.description ?? "")),
-                source: "adzuna",
-              })
-            )
-          )
-          .catch(() => [])
-      );
-    }
+        `&what=${encodeURIComponent("remote " + q)}&content-type=application/json`;
+      try {
+        const r = await fetch(url, { signal });
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          return {
+            ok: false as const,
+            err: `${r.status} ${
+              (e as { exception?: string; error?: string }).exception ??
+              (e as { error?: string }).error ??
+              ""
+            }`.trim(),
+          };
+        }
+        const d = (await r.json()) as { results?: AdzunaJob[] };
+        const list = (d.results ?? []).map(
+          (j): NormalizedJob => ({
+            id: `adzuna-${j.id}`,
+            title: j.title ?? "",
+            company: j.company?.display_name ?? "Unknown",
+            location:
+              (j.location?.display_name ?? "Remote") +
+              ` · ${country === "us" ? "United States" : "Canada"}`,
+            type: mapType(j.contract_time ?? j.contract_type ?? ""),
+            salary: formatSalary(j.salary_min, j.salary_max),
+            postedAt: j.created ?? new Date().toISOString(),
+            url: j.redirect_url ?? "",
+            description: shortDesc(stripHtml(j.description ?? "")),
+            source: "adzuna",
+          })
+        );
+        return { ok: true as const, jobs: list };
+      } catch (e) {
+        return {
+          ok: false as const,
+          err: e instanceof Error ? e.message : "network error",
+        };
+      }
+    })
+  );
+
+  const results = await Promise.all(tasks);
+  const jobs = results.flatMap((r) => (r.ok ? r.jobs : []));
+  const firstErr = results.find((r) => !r.ok);
+  if (jobs.length === 0) {
+    return {
+      jobs: [],
+      status: firstErr
+        ? `error: ${(firstErr as { err: string }).err}`
+        : "no jobs returned",
+    };
   }
-  const pages = await Promise.all(calls);
-  return pages.flat();
+  return { jobs, status: "ok" };
 }
 
 function titleMatches(title: string, keywords: string[]): boolean {
@@ -288,11 +316,18 @@ export async function GET(req: NextRequest) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25000);
   try {
-    const [remotive, muse, adzuna] = await Promise.all([
+    const [remotive, muse, adzunaResult] = await Promise.all([
       fetchRemotive(q, controller.signal).catch(() => []),
       fetchMuse(q, controller.signal).catch(() => []),
-      fetchAdzuna(q, controller.signal).catch(() => []),
+      fetchAdzuna(q, controller.signal).catch(
+        (e: unknown) =>
+          ({
+            jobs: [] as NormalizedJob[],
+            status: e instanceof Error ? e.message : "caught error",
+          }) as { jobs: NormalizedJob[]; status: string }
+      ),
     ]);
+    const adzuna = adzunaResult.jobs;
 
     // Merge + de-dupe by url (fall back to source+title+company).
     const seen = new Set<string>();
@@ -324,6 +359,7 @@ export async function GET(req: NextRequest) {
         remotive: remotive.length,
         muse: muse.length,
         adzuna: adzuna.length,
+        adzunaStatus: adzunaResult.status,
       },
     });
   } catch (err) {

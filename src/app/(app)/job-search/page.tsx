@@ -56,6 +56,7 @@ export default function JobSearchPage() {
     remotive: number;
     muse: number;
     adzuna: number;
+    adzunaStatus?: string;
   } | null>(null);
 
   const runSearch = useCallback(async (q: string, loc: string) => {
@@ -207,6 +208,9 @@ export default function JobSearchPage() {
                   <span>
                     Pulled from: Remotive {sources.remotive} · Muse{" "}
                     {sources.muse} · Adzuna {sources.adzuna}
+                    {sources.adzuna === 0 && sources.adzunaStatus
+                      ? ` (${sources.adzunaStatus})`
+                      : ""}
                   </span>
                 )}
               </div>
