@@ -7,7 +7,6 @@ import {
   sampleContracts,
   sampleListings,
   sampleSops,
-  sampleTimeEntries,
 } from "./sampleData";
 
 /** Default password for the seeded demo accounts. */
@@ -29,6 +28,9 @@ export async function ensureSeeded(prisma: PrismaClient) {
       data: { passwordHash },
     });
   }
+  // One-time cleanup: remove the previously seeded fake time entries (their
+  // ids all start with "u-"; real entries use cuids).
+  await prisma.timeEntry.deleteMany({ where: { id: { startsWith: "u-" } } });
 }
 
 /**
@@ -52,21 +54,6 @@ export async function seedDatabase(prisma: PrismaClient) {
 
   for (const a of sampleApplications()) {
     await prisma.jobApplication.create({ data: { ...a, date: new Date(a.date) } });
-  }
-
-  for (const userId of ["u-admin", "u-emp-1", "u-emp-2"]) {
-    for (const e of sampleTimeEntries(userId)) {
-      await prisma.timeEntry.create({
-        data: {
-          id: e.id,
-          userId: e.userId,
-          clockIn: new Date(e.clockIn),
-          clockOut: e.clockOut ? new Date(e.clockOut) : null,
-          project: e.project,
-          note: e.note,
-        },
-      });
-    }
   }
 
   for (const s of sampleSops()) {
