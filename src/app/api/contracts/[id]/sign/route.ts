@@ -14,8 +14,11 @@ export async function POST(
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { signatureDataUrl } = (await req.json()) as {
+  const { signatureDataUrl, fullName, address, phone } = (await req.json()) as {
     signatureDataUrl?: string;
+    fullName?: string;
+    address?: string;
+    phone?: string;
   };
   if (!signatureDataUrl) {
     return NextResponse.json({ error: "Signature is required." }, { status: 400 });
@@ -34,10 +37,16 @@ export async function POST(
   if (contract.status === "signed")
     return NextResponse.json(contract);
 
+  const signer = fullName?.trim() || me.name;
   const stamped = await stampSignature(
     contract.dataUrl,
     signatureDataUrl,
-    me.name
+    signer,
+    {
+      fullName: fullName?.trim() || me.name,
+      address: address?.trim(),
+      phone: phone?.trim(),
+    }
   );
 
   const updated = await prisma.contract.update({
@@ -46,7 +55,7 @@ export async function POST(
       status: "signed",
       signedAt: new Date(),
       signatureDataUrl,
-      signerName: me.name,
+      signerName: signer,
       dataUrl: stamped,
     },
   });

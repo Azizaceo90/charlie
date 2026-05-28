@@ -93,7 +93,15 @@ interface AppData {
 
   contracts: Contract[];
   addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
-  signContract: (id: string, signatureDataUrl: string) => Promise<void>;
+  signContract: (
+    id: string,
+    body: {
+      signatureDataUrl: string;
+      fullName?: string;
+      address?: string;
+      phone?: string;
+    }
+  ) => Promise<void>;
 
   applicants: Applicant[];
   addApplicant: (input: Omit<Applicant, "id">) => Promise<Applicant>;
@@ -320,11 +328,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return created;
   }, []);
   const signContract = useCallback(
-    async (id: string, signatureDataUrl: string) => {
+    async (
+      id: string,
+      body: {
+        signatureDataUrl: string;
+        fullName?: string;
+        address?: string;
+        phone?: string;
+      }
+    ) => {
       const res = await fetch(`/api/contracts/${id}/sign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signatureDataUrl }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Sign failed");
       const updated = await res.json();

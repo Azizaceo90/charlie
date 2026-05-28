@@ -457,8 +457,8 @@ export async function GET(req: NextRequest) {
     // Geo filter: only remote roles open to US or Canada candidates.
     filtered = filtered.filter((j) => isRemoteUsCanada(j.location, j.source));
 
-    // Drop postings older than 90 days — they're usually stale or filled.
-    const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+    // Drop postings older than 45 days — beyond that they're usually filled.
+    const MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
     filtered = filtered.filter((j) => {
       const t = new Date(j.postedAt).getTime();
       return !isNaN(t) && Date.now() - t < MAX_AGE_MS;

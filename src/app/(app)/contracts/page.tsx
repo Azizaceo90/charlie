@@ -40,9 +40,14 @@ export default function ContractsPage() {
     selected.status === "pending" &&
     selected.assignedToId === currentUser?.id;
 
-  function sign(signatureDataUrl: string) {
+  function sign(body: {
+    signatureDataUrl: string;
+    fullName?: string;
+    address?: string;
+    phone?: string;
+  }) {
     if (!selected || !currentUser) return;
-    signContract(selected.id, signatureDataUrl);
+    signContract(selected.id, body);
   }
 
   const pendingCount = visible.filter((c) => c.status === "pending").length;
@@ -181,7 +186,11 @@ export default function ContractsPage() {
                   </div>
                 </div>
               ) : canSign ? (
-                <SignPanel onSign={sign} contractTitle={selected.title} />
+                <SignPanel
+                  onSign={sign}
+                  contractTitle={selected.title}
+                  defaultName={currentUser?.name ?? ""}
+                />
               ) : (
                 <div className="mt-4 rounded-lg border border-line bg-bg-soft px-4 py-3 text-sm text-neutral-500">
                   {isAdmin
@@ -218,19 +227,68 @@ export default function ContractsPage() {
 function SignPanel({
   onSign,
   contractTitle,
+  defaultName,
 }: {
-  onSign: (dataUrl: string) => void;
+  onSign: (body: {
+    signatureDataUrl: string;
+    fullName?: string;
+    address?: string;
+    phone?: string;
+  }) => void;
   contractTitle: string;
+  defaultName: string;
 }) {
   const [signature, setSignature] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [fullName, setFullName] = useState(defaultName);
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const canSign =
+    Boolean(signature) &&
+    agreed &&
+    fullName.trim().length > 0 &&
+    address.trim().length > 0;
 
   return (
     <div className="mt-4 rounded-lg border border-brand/30 bg-brand/5 p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium text-neutral-900">
         <PenLine className="h-4 w-4 text-brand-soft" /> Sign this contract
       </div>
+
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label">Full legal name</label>
+          <input
+            className="input"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="First Last"
+          />
+        </div>
+        <div>
+          <label className="label">Phone</label>
+          <input
+            className="input"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(555) 555-5555"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">Address</label>
+          <input
+            className="input"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Street, City, State ZIP"
+          />
+        </div>
+      </div>
+
+      <div className="mb-1 text-xs font-medium text-neutral-500">Signature</div>
       <SignaturePad onChange={setSignature} />
+
       <label className="mt-3 flex items-start gap-2 text-xs text-neutral-700">
         <input
           type="checkbox"
@@ -246,8 +304,16 @@ function SignPanel({
       <div className="mt-3 flex justify-end">
         <button
           className="btn-primary"
-          disabled={!signature || !agreed}
-          onClick={() => signature && onSign(signature)}
+          disabled={!canSign}
+          onClick={() =>
+            signature &&
+            onSign({
+              signatureDataUrl: signature,
+              fullName: fullName.trim(),
+              address: address.trim(),
+              phone: phone.trim() || undefined,
+            })
+          }
         >
           <PenLine className="h-4 w-4" /> Agree &amp; sign
         </button>
