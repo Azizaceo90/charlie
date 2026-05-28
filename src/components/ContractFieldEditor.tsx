@@ -51,8 +51,9 @@ export default function ContractFieldEditor({
     if (!tool || !wrapRef.current) return;
     const t = TOOLS.find((x) => x.type === tool)!;
     const rect = wrapRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Add wrap scroll so clicks far down the document map to the right spot.
+    const x = e.clientX - rect.left + wrapRef.current.scrollLeft;
+    const y = e.clientY - rect.top + wrapRef.current.scrollTop;
     const f: ContractField = {
       id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       type: tool,
@@ -128,11 +129,11 @@ export default function ContractFieldEditor({
       <div
         ref={wrapRef}
         onClick={handleCanvasClick}
-        className={`relative inline-block max-w-full rounded-lg border border-line bg-white ${
+        className={`relative max-h-[70vh] overflow-auto rounded-lg border border-line bg-white ${
           tool ? "cursor-crosshair" : "cursor-default"
         }`}
       >
-        <canvas ref={canvasRef} className="block max-w-full" />
+        <canvas ref={canvasRef} className="block" />
         {value
           .filter((f) => f.page === 1)
           .map((f) => (

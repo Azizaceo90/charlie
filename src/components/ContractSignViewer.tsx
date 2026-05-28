@@ -38,9 +38,9 @@ export default function ContractSignViewer({
   return (
     <div
       ref={wrapRef}
-      className="relative inline-block max-w-full rounded-lg border border-line bg-white"
+      className="relative max-h-[70vh] overflow-auto rounded-lg border border-line bg-white"
     >
-      <canvas ref={canvasRef} className="block max-w-full" />
+      <canvas ref={canvasRef} className="block" />
       {fields
         .filter((f) => f.page === 1)
         .map((f) => {
