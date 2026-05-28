@@ -57,6 +57,8 @@ export default function JobSearchPage() {
     muse: number;
     adzuna: number;
     adzunaStatus?: string;
+    jsearch: number;
+    jsearchStatus?: string;
   } | null>(null);
 
   const runSearch = useCallback(async (q: string, loc: string) => {
@@ -206,10 +208,14 @@ export default function JobSearchPage() {
                 <span>{results.length} live listings</span>
                 {sources && (
                   <span>
-                    Pulled from: Remotive {sources.remotive} · Muse{" "}
-                    {sources.muse} · Adzuna {sources.adzuna}
+                    Remotive {sources.remotive} · Muse {sources.muse} · Adzuna{" "}
+                    {sources.adzuna}
                     {sources.adzuna === 0 && sources.adzunaStatus
                       ? ` (${sources.adzunaStatus})`
+                      : ""}{" "}
+                    · JSearch {sources.jsearch}
+                    {sources.jsearch === 0 && sources.jsearchStatus
+                      ? ` (${sources.jsearchStatus})`
                       : ""}
                   </span>
                 )}

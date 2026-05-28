@@ -14,7 +14,93 @@ interface NormalizedJob {
   postedAt: string;
   url: string;
   description: string;
-  source: "remotive" | "muse" | "adzuna";
+  source: "remotive" | "muse" | "adzuna" | "jsearch";
+}
+
+interface JSearchJob {
+  job_id: string;
+  job_title?: string;
+  employer_name?: string;
+  job_city?: string | null;
+  job_state?: string | null;
+  job_country?: string | null;
+  job_apply_link?: string;
+  job_description?: string;
+  job_employment_type?: string;
+  job_posted_at_datetime_utc?: string;
+  job_min_salary?: number | null;
+  job_max_salary?: number | null;
+  job_is_remote?: boolean;
+}
+
+async function fetchJSearch(
+  q: string,
+  signal: AbortSignal
+): Promise<{ jobs: NormalizedJob[]; status: string }> {
+  const key = process.env.RAPIDAPI_KEY;
+  if (!key) return { jobs: [], status: "keys not set in Vercel" };
+  if (!q) return { jobs: [], status: "empty query" };
+  const COUNTRIES = ["us", "ca"] as const;
+  const tasks = COUNTRIES.map(async (country) => {
+    const url =
+      `https://jsearch.p.rapidapi.com/search` +
+      `?query=${encodeURIComponent(q + " remote")}` +
+      `&page=1&num_pages=3&remote_jobs_only=true&country=${country}`;
+    try {
+      const r = await fetch(url, {
+        signal,
+        headers: {
+          "X-RapidAPI-Key": key,
+          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+        },
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        return {
+          ok: false as const,
+          err: `${r.status} ${(e as { message?: string }).message ?? ""}`.trim(),
+        };
+      }
+      const d = (await r.json()) as { data?: JSearchJob[] };
+      const list = (d.data ?? []).map(
+        (j): NormalizedJob => ({
+          id: `jsearch-${j.job_id}`,
+          title: j.job_title ?? "",
+          company: j.employer_name ?? "Unknown",
+          location:
+            [j.job_city, j.job_state, country === "us" ? "United States" : "Canada"]
+              .filter(Boolean)
+              .join(", ") + (j.job_is_remote ? " · Remote" : ""),
+          type: mapType(j.job_employment_type ?? ""),
+          salary: formatSalary(
+            j.job_min_salary ?? undefined,
+            j.job_max_salary ?? undefined
+          ),
+          postedAt:
+            j.job_posted_at_datetime_utc ?? new Date().toISOString(),
+          url: j.job_apply_link ?? "",
+          description: shortDesc(stripHtml(j.job_description ?? "")),
+          source: "jsearch",
+        })
+      );
+      return { ok: true as const, jobs: list };
+    } catch (e) {
+      return {
+        ok: false as const,
+        err: e instanceof Error ? e.message : "network error",
+      };
+    }
+  });
+  const results = await Promise.all(tasks);
+  const jobs = results.flatMap((r) => (r.ok ? r.jobs : []));
+  const firstErr = results.find((r) => !r.ok);
+  if (jobs.length === 0) {
+    return {
+      jobs: [],
+      status: firstErr ? `error: ${(firstErr as { err: string }).err}` : "no jobs returned",
+    };
+  }
+  return { jobs, status: "ok" };
 }
 
 function formatSalary(min?: number, max?: number): string | undefined {
@@ -316,23 +402,24 @@ export async function GET(req: NextRequest) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25000);
   try {
-    const [remotive, muse, adzunaResult] = await Promise.all([
+    const caughtErr = (e: unknown) =>
+      ({
+        jobs: [] as NormalizedJob[],
+        status: e instanceof Error ? e.message : "caught error",
+      }) as { jobs: NormalizedJob[]; status: string };
+    const [remotive, muse, adzunaResult, jsearchResult] = await Promise.all([
       fetchRemotive(q, controller.signal).catch(() => []),
       fetchMuse(q, controller.signal).catch(() => []),
-      fetchAdzuna(q, controller.signal).catch(
-        (e: unknown) =>
-          ({
-            jobs: [] as NormalizedJob[],
-            status: e instanceof Error ? e.message : "caught error",
-          }) as { jobs: NormalizedJob[]; status: string }
-      ),
+      fetchAdzuna(q, controller.signal).catch(caughtErr),
+      fetchJSearch(q, controller.signal).catch(caughtErr),
     ]);
     const adzuna = adzunaResult.jobs;
+    const jsearch = jsearchResult.jobs;
 
     // Merge + de-dupe by url (fall back to source+title+company).
     const seen = new Set<string>();
     const merged: NormalizedJob[] = [];
-    for (const j of [...remotive, ...muse, ...adzuna]) {
+    for (const j of [...remotive, ...muse, ...adzuna, ...jsearch]) {
       const key = j.url || `${j.source}|${j.company}|${j.title}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -377,6 +464,8 @@ export async function GET(req: NextRequest) {
         muse: muse.length,
         adzuna: adzuna.length,
         adzunaStatus: adzunaResult.status,
+        jsearch: jsearch.length,
+        jsearchStatus: jsearchResult.status,
       },
     });
   } catch (err) {
