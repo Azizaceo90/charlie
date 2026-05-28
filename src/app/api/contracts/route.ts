@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { contractEmailHtml, sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,5 +38,27 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(contract, { status: 201 });
+  // Second email: the contract to sign, with the PDF attached.
+  const assignee = await prisma.user.findUnique({
+    where: { id: contract.assignedToId },
+  });
+  let emailed = false;
+  if (assignee) {
+    const base64 = contract.dataUrl.split(",")[1] ?? "";
+    emailed = await sendEmail({
+      to: assignee.email,
+      subject: `Contract to sign: ${contract.title}`,
+      html: contractEmailHtml({
+        name: assignee.name,
+        contractTitle: contract.title,
+        inviter: me.name,
+        signUrl: `${req.nextUrl.origin}/contracts`,
+      }),
+      attachments: base64
+        ? [{ filename: contract.fileName, content: base64 }]
+        : undefined,
+    });
+  }
+
+  return NextResponse.json({ ...contract, emailed }, { status: 201 });
 }

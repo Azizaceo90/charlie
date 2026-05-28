@@ -2,6 +2,7 @@ interface SendArgs {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: string }[];
 }
 
 /**
@@ -9,7 +10,12 @@ interface SendArgs {
  * false) when RESEND_API_KEY isn't configured, so the app degrades gracefully
  * to showing credentials in the UI instead.
  */
-export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolean> {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  attachments,
+}: SendArgs): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   const from = process.env.EMAIL_FROM || "Career Ops <onboarding@resend.dev>";
@@ -20,12 +26,41 @@ export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolea
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        html,
+        ...(attachments?.length ? { attachments } : {}),
+      }),
     });
     return res.ok;
   } catch {
     return false;
   }
+}
+
+export function contractEmailHtml(opts: {
+  name: string;
+  contractTitle: string;
+  inviter: string;
+  signUrl: string;
+}): string {
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:480px;margin:0 auto;color:#323338">
+    <div style="background:#0073ea;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;font-size:18px;font-weight:700">
+      Career Ops
+    </div>
+    <div style="border:1px solid #e0e3ee;border-top:0;border-radius:0 0 12px 12px;padding:24px">
+      <p>Hi ${opts.name},</p>
+      <p>${opts.inviter} has assigned you a contract to review and sign:</p>
+      <div style="background:#f6f7fb;border:1px solid #e0e3ee;border-radius:8px;padding:14px 16px;margin:16px 0;font-size:15px;font-weight:600">
+        ${opts.contractTitle}
+      </div>
+      <p>The document is attached. To sign it electronically, open Contracts in Career Ops:</p>
+      <a href="${opts.signUrl}" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Review &amp; sign</a>
+    </div>
+  </div>`;
 }
 
 export function emailConfigured(): boolean {
