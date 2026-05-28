@@ -575,7 +575,180 @@ function TeamHoursView() {
           )}
         </Card>
       </div>
+
+      <SubmittedTimesheets />
     </div>
+  );
+}
+
+function SubmittedTimesheets() {
+  const { users, timeEntries, approveTimesheet } = useData();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const rows = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        userId: string;
+        weekStart: Date;
+        minutes: number;
+        charts: number;
+        submittedAt: string;
+        approvedAt: string | null;
+        unapprovedCount: number;
+      }
+    >();
+    for (const e of timeEntries) {
+      if (!e.submittedAt || !e.clockOut) continue;
+      const start = new Date(e.clockIn);
+      const day = start.getDay();
+      start.setDate(start.getDate() - ((day + 6) % 7));
+      start.setHours(0, 0, 0, 0);
+      const key = `${e.userId}|${start.toISOString().slice(0, 10)}`;
+      const mins =
+        (new Date(e.clockOut).getTime() - new Date(e.clockIn).getTime()) /
+        60000;
+      const row = map.get(key);
+      if (row) {
+        row.minutes += mins;
+        row.charts += e.chartsCoded ?? 0;
+        if (e.submittedAt > row.submittedAt) row.submittedAt = e.submittedAt;
+        if (e.approvedAt && (!row.approvedAt || e.approvedAt > row.approvedAt))
+          row.approvedAt = e.approvedAt;
+        if (!e.approvedAt) row.unapprovedCount += 1;
+      } else {
+        map.set(key, {
+          userId: e.userId,
+          weekStart: start,
+          minutes: mins,
+          charts: e.chartsCoded ?? 0,
+          submittedAt: e.submittedAt,
+          approvedAt: e.approvedAt ?? null,
+          unapprovedCount: e.approvedAt ? 0 : 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.unapprovedCount !== b.unapprovedCount) {
+        return b.unapprovedCount - a.unapprovedCount;
+      }
+      return a.submittedAt < b.submittedAt ? 1 : -1;
+    });
+  }, [timeEntries]);
+
+  async function approve(userId: string, weekStart: Date) {
+    const key = `${userId}-${weekStart.toISOString()}`;
+    setBusy(key);
+    const res = await approveTimesheet(userId, weekStart.toISOString());
+    setBusy(null);
+    setToast(
+      res.approved > 0
+        ? `Approved ${res.approved} entries.`
+        : res.message ?? "Nothing to approve."
+    );
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  return (
+    <Card className="mt-6 overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line px-5 py-3">
+        <h2 className="text-sm font-medium text-neutral-900">
+          Submitted timesheets
+        </h2>
+        {toast && <span className="text-xs text-neutral-500">{toast}</span>}
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-5 py-8 text-center text-sm text-neutral-400">
+          No timesheets submitted yet.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-neutral-500">
+                <th className="px-5 py-2 font-medium">Employee</th>
+                <th className="px-5 py-2 font-medium">Week of</th>
+                <th className="px-5 py-2 font-medium">Hours</th>
+                <th className="px-5 py-2 font-medium">Charts</th>
+                <th className="px-5 py-2 font-medium">Pay via</th>
+                <th className="px-5 py-2 font-medium">Status</th>
+                <th className="px-5 py-2 font-medium">&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const u = users.find((x) => x.id === r.userId);
+                const key = `${r.userId}-${r.weekStart.toISOString()}`;
+                const pending = r.unapprovedCount > 0;
+                return (
+                  <tr
+                    key={key}
+                    className="border-b border-line last:border-0"
+                  >
+                    <td className="px-5 py-3 font-medium text-neutral-900">
+                      {u?.name ?? "Unknown"}
+                      <div className="text-[11px] text-neutral-500">
+                        {u?.title ?? ""}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-neutral-700">
+                      {r.weekStart.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td className="px-5 py-3 tabular-nums text-neutral-700">
+                      {minutesToHm(r.minutes)}
+                    </td>
+                    <td className="px-5 py-3 tabular-nums text-neutral-700">
+                      {r.charts || "—"}
+                    </td>
+                    <td className="px-5 py-3 text-xs text-neutral-700">
+                      {u?.paymentMethod ? (
+                        <div>
+                          <div className="font-medium">{u.paymentMethod}</div>
+                          <div className="text-neutral-500">
+                            {u.paymentAccount ?? "—"}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-neutral-400">Not set</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3">
+                      {pending ? (
+                        <span className="chip bg-accent-amber/15 text-accent-amber">
+                          Pending
+                        </span>
+                      ) : (
+                        <span className="chip bg-accent-green/15 text-accent-green">
+                          Approved
+                          {r.approvedAt
+                            ? ` ${new Date(r.approvedAt).toLocaleDateString()}`
+                            : ""}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {pending && (
+                        <button
+                          onClick={() => approve(r.userId, r.weekStart)}
+                          className="btn-primary text-xs"
+                          disabled={busy === key}
+                        >
+                          Approve
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }
 

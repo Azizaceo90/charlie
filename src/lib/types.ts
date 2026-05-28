@@ -74,6 +74,7 @@ export interface TimeEntry {
   chartsCoded?: number;
   claimsProcessed?: number;
   submittedAt?: string | null;
+  approvedAt?: string | null;
 }
 
 // ── SOP documents ────────────────────────────────────────────────────────────

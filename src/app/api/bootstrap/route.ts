@@ -35,6 +35,11 @@ export async function GET() {
         title: true,
         avatarColor: true,
         onboardingDone: true,
+        // Payment info is sensitive — only include for admins so they can
+        // pay people when approving timesheets.
+        ...(me.role === "admin"
+          ? { paymentMethod: true, paymentAccount: true }
+          : {}),
       },
     }),
     prisma.jobApplication.findMany({ orderBy: { date: "desc" } }),

@@ -113,6 +113,10 @@ interface AppData {
   updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => Promise<void>;
   removeTimeEntry: (id: string) => Promise<void>;
   submitTimesheet: () => Promise<{ submitted: number; message?: string }>;
+  approveTimesheet: (
+    userId: string,
+    weekStart: string
+  ) => Promise<{ approved: number; message?: string }>;
 
   sops: SopDoc[];
   addSop: (input: Omit<SopDoc, "id">) => Promise<SopDoc>;
@@ -443,6 +447,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return { submitted: data.submitted ?? 0, message: data.message };
   }, []);
 
+  const approveTimesheet = useCallback(
+    async (userId: string, weekStart: string) => {
+      const res = await fetch("/api/time-entries/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, weekStart }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { approved: 0, message: data.error ?? "Approve failed" };
+      }
+      if (Array.isArray(data.entries)) {
+        const byId = new Map<string, TimeEntry>(
+          (data.entries as TimeEntry[]).map((e) => [e.id, e])
+        );
+        setTimeEntries((prev) =>
+          prev.map((e) => (byId.has(e.id) ? (byId.get(e.id) as TimeEntry) : e))
+        );
+      }
+      return { approved: data.approved ?? 0, message: data.message };
+    },
+    []
+  );
+
   // ── SOPs ──
   const addSop = useCallback(async (input: Omit<SopDoc, "id">) => {
     const created = await apiCreate<SopDoc>("sops", input);
@@ -539,6 +567,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updateTimeEntry,
     removeTimeEntry,
     submitTimesheet,
+    approveTimesheet,
     sops,
     addSop,
     removeSop,

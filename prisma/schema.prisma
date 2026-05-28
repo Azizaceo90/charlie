@@ -91,6 +91,7 @@ model TimeEntry {
   chartsCoded     Int       @default(0)
   claimsProcessed Int       @default(0)
   submittedAt     DateTime?
+  approvedAt      DateTime?
 }
 
 model SopDoc {
