@@ -10,7 +10,6 @@ import RangeFilter from "@/components/RangeFilter";
 import { dateOnly, minutesToHm, timeOnly } from "@/lib/format";
 
 const PROJECTS = [
-  "Client Onboarding",
   "Recruiting",
   "Internal Ops",
   "SOP Writing",
@@ -218,6 +217,9 @@ function PersonalTracker() {
       <WeeklySubmitPanel
         entries={myEntries}
         onSubmit={submitTimesheet}
+        paymentReady={Boolean(
+          currentUser?.paymentMethod && currentUser?.paymentAccount
+        )}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -404,7 +406,7 @@ function ManualEntryModal({
 
 function TeamHoursView() {
   const { users, timeEntries } = useData();
-  const [range, setRange] = useState<RangeKey>("7days");
+  const [range, setRange] = useState<RangeKey>("today");
   const [tick, setTick] = useState(Date.now());
 
   useEffect(() => {
@@ -582,7 +584,7 @@ function TeamHoursView() {
 }
 
 function SubmittedTimesheets() {
-  const { users, timeEntries, approveTimesheet } = useData();
+  const { users, timeEntries, applications, approveTimesheet } = useData();
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -670,7 +672,7 @@ function SubmittedTimesheets() {
                 <th className="px-5 py-2 font-medium">Employee</th>
                 <th className="px-5 py-2 font-medium">Week of</th>
                 <th className="px-5 py-2 font-medium">Hours</th>
-                <th className="px-5 py-2 font-medium">Charts</th>
+                <th className="px-5 py-2 font-medium">Output</th>
                 <th className="px-5 py-2 font-medium">Pay via</th>
                 <th className="px-5 py-2 font-medium">Status</th>
                 <th className="px-5 py-2 font-medium">&nbsp;</th>
@@ -681,6 +683,23 @@ function SubmittedTimesheets() {
                 const u = users.find((x) => x.id === r.userId);
                 const key = `${r.userId}-${r.weekStart.toISOString()}`;
                 const pending = r.unapprovedCount > 0;
+                const weekEnd = new Date(r.weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+                const isMedical = u?.title === "Medical Coder";
+                const isAppSpec = u?.title === "Application Specialist";
+                const appliedThisWeek = isAppSpec
+                  ? applications.filter((a) => {
+                      const t = new Date(a.date).getTime();
+                      return t >= r.weekStart.getTime() && t < weekEnd.getTime();
+                    }).length
+                  : 0;
+                const outputLabel = isMedical
+                  ? r.charts
+                    ? `${r.charts} charts`
+                    : "—"
+                  : isAppSpec
+                    ? `${appliedThisWeek} applied`
+                    : "—";
                 return (
                   <tr
                     key={key}
@@ -702,7 +721,7 @@ function SubmittedTimesheets() {
                       {minutesToHm(r.minutes)}
                     </td>
                     <td className="px-5 py-3 tabular-nums text-neutral-700">
-                      {r.charts || "—"}
+                      {outputLabel}
                     </td>
                     <td className="px-5 py-3 text-xs text-neutral-700">
                       {u?.paymentMethod ? (
@@ -802,9 +821,11 @@ function weekStartLocal(d: Date): Date {
 function WeeklySubmitPanel({
   entries,
   onSubmit,
+  paymentReady,
 }: {
   entries: TimeEntry[];
   onSubmit: () => Promise<{ submitted: number; message?: string }>;
+  paymentReady: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -863,14 +884,21 @@ function WeeklySubmitPanel({
       </div>
       <div className="flex items-center gap-2">
         {toast && <span className="text-xs text-neutral-500">{toast}</span>}
+        {!paymentReady && (
+          <span className="text-xs text-accent-red">
+            Add a payment method in My Account first.
+          </span>
+        )}
         <button
           className="btn-primary"
           onClick={handle}
-          disabled={busy || unsubmitted.length === 0}
+          disabled={busy || unsubmitted.length === 0 || !paymentReady}
           title={
-            unsubmitted.length === 0
-              ? "Nothing to submit"
-              : `Submit ${unsubmitted.length} entries`
+            !paymentReady
+              ? "Add a payment method first"
+              : unsubmitted.length === 0
+                ? "Nothing to submit"
+                : `Submit ${unsubmitted.length} entries`
           }
         >
           {allSubmitted ? "Resubmit" : "Submit timesheet"}

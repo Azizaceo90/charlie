@@ -18,6 +18,15 @@ function weekStart(d: Date): Date {
 export async function POST(req: NextRequest) {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!me.paymentMethod || !me.paymentAccount) {
+    return NextResponse.json(
+      {
+        error:
+          "Add a payment method in My Account before submitting a timesheet.",
+      },
+      { status: 400 }
+    );
+  }
   const { weekStart: weekStartIso } = (await req.json().catch(() => ({}))) as {
     weekStart?: string;
   };

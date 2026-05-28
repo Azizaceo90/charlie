@@ -10,6 +10,7 @@ export type RangeKey =
   | "yesterday"
   | "2days"
   | "7days"
+  | "15days"
   | "30days"
   | "all";
 
@@ -18,6 +19,7 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: "yesterday", label: "Yesterday" },
   { key: "2days", label: "Last 2 days" },
   { key: "7days", label: "Last 7 days" },
+  { key: "15days", label: "Last 15 days" },
   { key: "30days", label: "Last 30 days" },
   { key: "all", label: "All time" },
 ];
@@ -41,6 +43,8 @@ export function rangeInterval(key: RangeKey, now: Date = new Date()): Interval {
       return { start: subDays(today, 1), end: endOfDay(now) };
     case "7days":
       return { start: subDays(today, 6), end: endOfDay(now) };
+    case "15days":
+      return { start: subDays(today, 14), end: endOfDay(now) };
     case "30days":
       return { start: subDays(today, 29), end: endOfDay(now) };
     case "all":

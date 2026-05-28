@@ -295,12 +295,11 @@ export default function InsightsPage() {
         </Card>
       </div>
 
-      <SubmittedTimesheetsTable />
     </div>
   );
 }
 
-function SubmittedTimesheetsTable() {
+function _UnusedSubmittedTimesheetsTable() {
   const { currentUser, users, timeEntries } = useData();
   if (currentUser?.role !== "admin") return null;
 

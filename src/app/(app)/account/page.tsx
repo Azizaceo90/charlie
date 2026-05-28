@@ -15,7 +15,7 @@ import { PersonalDoc } from "@/lib/types";
 import { Card, PageHeader } from "@/components/ui";
 import { ago } from "@/lib/format";
 
-const DOC_CATEGORIES = ["Resume", "Certification", "ID", "Other"];
+const DOC_CATEGORIES = ["ID"];
 
 export default function AccountPage() {
   const { currentUser } = useData();

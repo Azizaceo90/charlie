@@ -1,13 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import {
-  SAMPLE_USERS,
-  sampleApplicants,
-  sampleApplications,
-  sampleContracts,
-  sampleListings,
-  sampleSops,
-} from "./sampleData";
+import { SAMPLE_USERS } from "./sampleData";
 
 /** Default password for the seeded demo accounts. */
 export const DEMO_PASSWORD = "careerops";
@@ -18,8 +11,7 @@ export async function ensureSeeded(prisma: PrismaClient) {
     await seedDatabase(prisma);
     return;
   }
-  // Backfill: older accounts were created before passwords existed. Give any
-  // password-less account the demo password so they can sign in (one-time).
+  // Backfill: older accounts were created before passwords existed.
   const missing = await prisma.user.count({ where: { passwordHash: null } });
   if (missing > 0) {
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -28,53 +20,24 @@ export async function ensureSeeded(prisma: PrismaClient) {
       data: { passwordHash },
     });
   }
-  // One-time cleanup: remove the previously seeded fake time entries (their
-  // ids all start with "u-"; real entries use cuids).
+  // One-time cleanup: remove the previously seeded fake data (sample rows
+  // had predictable id prefixes; real ones use cuids that start with "cm").
   await prisma.timeEntry.deleteMany({ where: { id: { startsWith: "u-" } } });
+  await prisma.jobApplication.deleteMany({ where: { id: { startsWith: "app-" } } });
+  await prisma.applicant.deleteMany({ where: { id: { startsWith: "applicant-" } } });
+  await prisma.contract.deleteMany({ where: { id: { startsWith: "contract-" } } });
+  await prisma.sopDoc.deleteMany({ where: { id: { startsWith: "sop-" } } });
+  await prisma.jobListing.deleteMany({ where: { id: { startsWith: "listing-" } } });
+  // Demo employees Maya / Devon (rarely needed once the admin is set up).
+  await prisma.user.deleteMany({ where: { id: { in: ["u-emp-1", "u-emp-2"] } } });
 }
 
-/**
- * Loads the sample dataset into the database. Clears existing rows first so it
- * is safe to re-run. Used by the `db:seed` script and by the bootstrap API to
- * auto-populate a fresh (empty) deployment.
- */
+/** Seeds a fresh database with the admin user only. */
 export async function seedDatabase(prisma: PrismaClient) {
-  await prisma.timeEntry.deleteMany();
-  await prisma.contract.deleteMany();
-  await prisma.jobApplication.deleteMany();
-  await prisma.applicant.deleteMany();
-  await prisma.jobListing.deleteMany();
-  await prisma.sopDoc.deleteMany();
   await prisma.user.deleteMany();
-
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
-  for (const u of SAMPLE_USERS) {
-    await prisma.user.create({ data: { ...u, passwordHash } });
-  }
-
-  for (const a of sampleApplications()) {
-    await prisma.jobApplication.create({ data: { ...a, date: new Date(a.date) } });
-  }
-
-  for (const s of sampleSops()) {
-    await prisma.sopDoc.create({ data: { ...s, uploadedAt: new Date(s.uploadedAt) } });
-  }
-
-  for (const c of sampleContracts()) {
-    await prisma.contract.create({
-      data: {
-        ...c,
-        issuedAt: new Date(c.issuedAt),
-        signedAt: c.signedAt ? new Date(c.signedAt) : null,
-      },
-    });
-  }
-
-  for (const a of sampleApplicants()) {
-    await prisma.applicant.create({ data: { ...a, appliedAt: new Date(a.appliedAt) } });
-  }
-
-  for (const l of sampleListings()) {
-    await prisma.jobListing.create({ data: { ...l, postedAt: new Date(l.postedAt) } });
+  const admin = SAMPLE_USERS.find((u) => u.role === "admin");
+  if (admin) {
+    await prisma.user.create({ data: { ...admin, passwordHash } });
   }
 }
