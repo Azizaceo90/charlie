@@ -122,18 +122,9 @@ async function fetchMuse(
       company?: { name?: string };
       locations?: Array<{ name?: string }>;
     }>) {
-      const title = j.name ?? "";
-      // Filter by query keywords so "SDR" actually returns SDR results.
-      if (
-        q &&
-        !title.toLowerCase().includes(q.toLowerCase()) &&
-        !(j.contents ?? "").toLowerCase().includes(q.toLowerCase())
-      ) {
-        continue;
-      }
       out.push({
         id: `muse-${j.id}`,
-        title,
+        title: j.name ?? "",
         company: j.company?.name ?? "Unknown",
         location: j.locations?.[0]?.name ?? "—",
         type: mapType(j.type),
@@ -145,6 +136,40 @@ async function fetchMuse(
     }
   }
   return out;
+}
+
+/** Expand a query into match keywords so SDR ↔ Sales Development etc. */
+function buildKeywords(q: string): string[] {
+  const x = q.toLowerCase().trim();
+  if (!x) return [];
+  // Any sales-family search (SDR/BDR/founding/AE) accepts the whole family.
+  if (
+    /\bsdr\b|\bbdr\b|sales development|business development|account exec|\bae\b|founding\s+(sdr|bdr|sales|ae|account)/.test(
+      x
+    )
+  ) {
+    return [
+      "sdr",
+      "bdr",
+      "sales development",
+      "business development",
+      "sales dev",
+      "biz dev",
+      "account executive",
+      "account exec",
+    ];
+  }
+  // Fallback: split into significant words.
+  return x.split(/\s+/).filter((w) => w.length >= 3);
+}
+
+function titleMatches(title: string, keywords: string[]): boolean {
+  if (keywords.length === 0) return true;
+  const t = title.toLowerCase();
+  return keywords.some((k) => {
+    if (k.length <= 3) return new RegExp(`\\b${k}\\b`, "i").test(t);
+    return t.includes(k);
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -169,10 +194,14 @@ export async function GET(req: NextRequest) {
       merged.push(j);
     }
 
+    // Drop results whose title doesn't actually match the search term — the
+    // upstream APIs return a lot of loosely-related jobs.
+    const keywords = buildKeywords(q);
+    let filtered = merged.filter((j) => titleMatches(j.title, keywords));
+
     // Optional location filter (substring, case-insensitive).
-    const filtered = loc
-      ? merged.filter((j) => j.location.toLowerCase().includes(loc))
-      : merged;
+    if (loc)
+      filtered = filtered.filter((j) => j.location.toLowerCase().includes(loc));
 
     filtered.sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
 
