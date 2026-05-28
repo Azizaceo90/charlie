@@ -16,7 +16,7 @@ import SignaturePad from "@/components/SignaturePad";
 import { ago, dateOnly } from "@/lib/format";
 
 export default function ContractsPage() {
-  const { currentUser, users, contracts, addContract, updateContract } =
+  const { currentUser, users, contracts, addContract, signContract } =
     useData();
   const isAdmin = currentUser?.role === "admin";
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -42,12 +42,7 @@ export default function ContractsPage() {
 
   function sign(signatureDataUrl: string) {
     if (!selected || !currentUser) return;
-    updateContract(selected.id, {
-      status: "signed",
-      signedAt: new Date().toISOString(),
-      signatureDataUrl,
-      signerName: currentUser.name,
-    });
+    signContract(selected.id, signatureDataUrl);
   }
 
   const pendingCount = visible.filter((c) => c.status === "pending").length;

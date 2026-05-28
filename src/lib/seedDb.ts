@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import {
   SAMPLE_USERS,
   sampleApplicants,
@@ -8,6 +9,27 @@ import {
   sampleSops,
   sampleTimeEntries,
 } from "./sampleData";
+
+/** Default password for the seeded demo accounts. */
+export const DEMO_PASSWORD = "careerops";
+
+/** Seeds the database only if it is empty. Safe to call on every request. */
+export async function ensureSeeded(prisma: PrismaClient) {
+  if ((await prisma.user.count()) === 0) {
+    await seedDatabase(prisma);
+    return;
+  }
+  // Backfill: older accounts were created before passwords existed. Give any
+  // password-less account the demo password so they can sign in (one-time).
+  const missing = await prisma.user.count({ where: { passwordHash: null } });
+  if (missing > 0) {
+    const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+    await prisma.user.updateMany({
+      where: { passwordHash: null },
+      data: { passwordHash },
+    });
+  }
+}
 
 /**
  * Loads the sample dataset into the database. Clears existing rows first so it
@@ -23,8 +45,9 @@ export async function seedDatabase(prisma: PrismaClient) {
   await prisma.sopDoc.deleteMany();
   await prisma.user.deleteMany();
 
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   for (const u of SAMPLE_USERS) {
-    await prisma.user.create({ data: u });
+    await prisma.user.create({ data: { ...u, passwordHash } });
   }
 
   for (const a of sampleApplications()) {

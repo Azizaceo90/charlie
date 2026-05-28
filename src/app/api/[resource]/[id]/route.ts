@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDates, db, isResource } from "@/lib/resources";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { resource: string; id: string } }
 ) {
+  if (!(await getCurrentUser())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isResource(params.resource)) {
     return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
   }
@@ -31,6 +35,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { resource: string; id: string } }
 ) {
+  if (!(await getCurrentUser())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isResource(params.resource)) {
     return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
   }

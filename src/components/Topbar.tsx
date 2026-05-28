@@ -1,30 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
+import {
+  Bell,
+  CheckCircle2,
+  FileSignature,
+  Search,
+} from "lucide-react";
 import { format } from "date-fns";
 import { useData } from "@/lib/store";
 import { NAV_ITEMS } from "./nav";
+import { ago } from "@/lib/format";
 
 export default function Topbar() {
   const pathname = usePathname();
-  const { currentUser, contracts } = useData();
+  const router = useRouter();
+  const { currentUser, notifications, unreadCount, markNotificationsRead } =
+    useData();
+  const [open, setOpen] = useState(false);
   if (!currentUser) return null;
 
   const current = NAV_ITEMS.find(
     (i) => pathname === i.href || pathname.startsWith(i.href + "/")
   );
 
-  const pending =
-    currentUser.role === "admin"
-      ? contracts.filter((c) => c.status === "pending").length
-      : contracts.filter(
-          (c) => c.assignedToId === currentUser.id && c.status === "pending"
-        ).length;
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && unreadCount > 0) markNotificationsRead();
+  }
 
   return (
-    <header className="z-10 flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg-card px-4 sm:px-6">
+    <header className="z-20 flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg-card px-4 sm:px-6">
       <div className="hidden items-center gap-2 text-sm sm:flex">
         <span className="text-neutral-400">JCAT Media</span>
         <span className="text-neutral-300">/</span>
@@ -45,18 +54,90 @@ export default function Topbar() {
         <span className="hidden rounded-lg bg-bg-soft px-3 py-1.5 text-xs font-medium text-neutral-500 lg:block">
           {format(new Date(), "EEE, MMM d")}
         </span>
-        <Link
-          href="/contracts"
-          className="relative rounded-lg p-2 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
-          title="Notifications"
-        >
-          <Bell className="h-[18px] w-[18px]" />
-          {pending > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-red px-1 text-[10px] font-bold text-white">
-              {pending}
-            </span>
+
+        <div className="relative">
+          <button
+            onClick={toggle}
+            className="relative rounded-lg p-2 text-neutral-500 hover:bg-bg-hover hover:text-neutral-900"
+            title="Notifications"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-red px-1 text-[10px] font-bold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {open && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setOpen(false)}
+              />
+              <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-line bg-bg-card shadow-pop">
+                <div className="border-b border-line px-4 py-2.5 text-sm font-semibold text-neutral-900">
+                  Notifications
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-neutral-400">
+                      No notifications yet.
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const Icon =
+                        n.type === "contract_signed"
+                          ? CheckCircle2
+                          : FileSignature;
+                      const inner = (
+                        <div className="flex gap-3 px-4 py-3 hover:bg-bg-hover">
+                          <div
+                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                              n.type === "contract_signed"
+                                ? "bg-accent-green/15 text-accent-green"
+                                : "bg-brand/15 text-brand"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-neutral-900">
+                              {n.title}
+                            </div>
+                            {n.body && (
+                              <div className="text-xs text-neutral-500">
+                                {n.body}
+                              </div>
+                            )}
+                            <div className="mt-0.5 text-[11px] text-neutral-400">
+                              {ago(n.createdAt)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                      return n.link ? (
+                        <button
+                          key={n.id}
+                          onClick={() => {
+                            setOpen(false);
+                            router.push(n.link!);
+                          }}
+                          className="block w-full text-left"
+                        >
+                          {inner}
+                        </button>
+                      ) : (
+                        <div key={n.id}>{inner}</div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
           )}
-        </Link>
+        </div>
+
         <div className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"

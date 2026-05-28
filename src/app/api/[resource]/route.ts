@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDates, db, isResource } from "@/lib/resources";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { resource: string } }
 ) {
+  if (!(await getCurrentUser())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isResource(params.resource)) {
     return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
   }

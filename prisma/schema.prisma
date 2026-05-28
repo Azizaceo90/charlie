@@ -15,15 +15,30 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  role        String // "admin" | "employee"
-  title       String?
-  avatarColor String?
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  role         String // "admin" | "employee"
+  title        String?
+  avatarColor  String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
 
-  timeEntries TimeEntry[]
-  contracts   Contract[]  @relation("AssignedContracts")
+  timeEntries   TimeEntry[]
+  contracts     Contract[]     @relation("AssignedContracts")
+  notifications Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // "contract_assigned" | "contract_signed"
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model JobApplication {

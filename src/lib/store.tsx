@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   Applicant,
+  AppNotification,
   Contract,
   JobApplication,
   JobListing,
@@ -17,8 +18,6 @@ import {
   TimeEntry,
   User,
 } from "./types";
-
-const CURRENT_USER_KEY = "career-ops:currentUserId";
 
 async function apiCreate<T>(resource: string, input: unknown): Promise<T> {
   const res = await fetch(`/api/${resource}`, {
@@ -30,11 +29,7 @@ async function apiCreate<T>(resource: string, input: unknown): Promise<T> {
   return res.json();
 }
 
-async function apiPatch<T>(
-  resource: string,
-  id: string,
-  patch: unknown
-): Promise<T> {
+async function apiPatch<T>(resource: string, id: string, patch: unknown): Promise<T> {
   const res = await fetch(`/api/${resource}/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -61,8 +56,19 @@ interface AppData {
 
   users: User[];
   currentUser: User | null;
-  login: (userId: string) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<string | null>;
+  logout: () => Promise<void>;
+  addUser: (input: {
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    title?: string;
+  }) => Promise<{ user?: User; error?: string }>;
+
+  notifications: AppNotification[];
+  unreadCount: number;
+  markNotificationsRead: () => Promise<void>;
 
   applications: JobApplication[];
   addApplication: (input: Omit<JobApplication, "id">) => Promise<JobApplication>;
@@ -80,7 +86,7 @@ interface AppData {
 
   contracts: Contract[];
   addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
-  updateContract: (id: string, patch: Partial<Contract>) => Promise<void>;
+  signContract: (id: string, signatureDataUrl: string) => Promise<void>;
 
   applicants: Applicant[];
   addApplicant: (input: Omit<Applicant, "id">) => Promise<Applicant>;
@@ -100,6 +106,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -114,66 +121,116 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const didInit = useRef(false);
 
+  const loadBootstrap = useCallback(async () => {
+    const res = await fetch("/api/bootstrap");
+    if (!res.ok) return;
+    const data = await res.json();
+    setUsers(data.users ?? []);
+    setApplications(data.applications ?? []);
+    setTimeEntries(data.timeEntries ?? []);
+    setSops(data.sops ?? []);
+    setContracts(data.contracts ?? []);
+    setApplicants(data.applicants ?? []);
+    setListings(data.listings ?? []);
+    setNotifications(data.notifications ?? []);
+  }, []);
+
+  const clearData = useCallback(() => {
+    setUsers([]);
+    setApplications([]);
+    setTimeEntries([]);
+    setSops([]);
+    setContracts([]);
+    setApplicants([]);
+    setListings([]);
+    setNotifications([]);
+  }, []);
+
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-
     (async () => {
       try {
-        const res = await fetch("/api/bootstrap");
-        const data = await res.json();
-        setUsers(data.users ?? []);
-        setApplications(data.applications ?? []);
-        setTimeEntries(data.timeEntries ?? []);
-        setSops(data.sops ?? []);
-        setContracts(data.contracts ?? []);
-        setApplicants(data.applicants ?? []);
-        setListings(data.listings ?? []);
-
-        const savedId = localStorage.getItem(CURRENT_USER_KEY);
-        if (savedId) {
-          const u = (data.users as User[]).find((x) => x.id === savedId);
-          if (u) setCurrentUser(u);
+        const meRes = await fetch("/api/auth/me");
+        const me = (await meRes.json()).user as User | null;
+        if (me) {
+          setCurrentUser(me);
+          await loadBootstrap();
         }
       } catch {
-        /* leave empty; UI shows empty states */
+        /* not logged in */
       } finally {
         setReady(true);
       }
     })();
-  }, []);
+  }, [loadBootstrap]);
 
   const login = useCallback(
-    (userId: string) => {
-      const u = users.find((x) => x.id === userId) ?? null;
-      setCurrentUser(u);
+    async (email: string, password: string): Promise<string | null> => {
       try {
-        localStorage.setItem(CURRENT_USER_KEY, userId);
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) return data.error ?? "Login failed.";
+        setCurrentUser(data.user);
+        await loadBootstrap();
+        return null;
       } catch {
-        /* ignore */
+        return "Could not reach the server. Try again.";
       }
     },
-    [users]
+    [loadBootstrap]
   );
 
-  const logout = useCallback(() => {
-    setCurrentUser(null);
+  const logout = useCallback(async () => {
     try {
-      localStorage.removeItem(CURRENT_USER_KEY);
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    setCurrentUser(null);
+    clearData();
+  }, [clearData]);
+
+  const addUser = useCallback(
+    async (input: {
+      name: string;
+      email: string;
+      password: string;
+      role: string;
+      title?: string;
+    }) => {
+      const res = await fetch("/api/auth/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = await res.json();
+      if (!res.ok) return { error: data.error ?? "Failed to add user." };
+      setUsers((prev) => [...prev, data.user]);
+      return { user: data.user as User };
+    },
+    []
+  );
+
+  const markNotificationsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await fetch("/api/notifications/read", { method: "POST" });
     } catch {
       /* ignore */
     }
   }, []);
 
   // ── Applications ──
-  const addApplication = useCallback(
-    async (input: Omit<JobApplication, "id">) => {
-      const created = await apiCreate<JobApplication>("applications", input);
-      setApplications((prev) => [created, ...prev]);
-      return created;
-    },
-    []
-  );
+  const addApplication = useCallback(async (input: Omit<JobApplication, "id">) => {
+    const created = await apiCreate<JobApplication>("applications", input);
+    setApplications((prev) => [created, ...prev]);
+    return created;
+  }, []);
   const removeApplication = useCallback(async (id: string) => {
     await apiDelete("applications", id);
     setApplications((prev) => prev.filter((a) => a.id !== id));
@@ -217,9 +274,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setContracts((prev) => [created, ...prev]);
     return created;
   }, []);
-  const updateContract = useCallback(
-    async (id: string, patch: Partial<Contract>) => {
-      const updated = await apiPatch<Contract>("contracts", id, patch);
+  const signContract = useCallback(
+    async (id: string, signatureDataUrl: string) => {
+      const res = await fetch(`/api/contracts/${id}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signatureDataUrl }),
+      });
+      if (!res.ok) throw new Error("Sign failed");
+      const updated = await res.json();
       setContracts((prev) => prev.map((c) => (c.id === id ? updated : c)));
     },
     []
@@ -259,6 +322,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     currentUser,
     login,
     logout,
+    addUser,
+    notifications,
+    unreadCount: notifications.filter((n) => !n.read).length,
+    markNotificationsRead,
     applications,
     addApplication,
     removeApplication,
@@ -272,7 +339,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     removeSop,
     contracts,
     addContract,
-    updateContract,
+    signContract,
     applicants,
     addApplicant,
     updateApplicant,

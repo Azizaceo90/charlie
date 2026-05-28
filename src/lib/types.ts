@@ -5,8 +5,19 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  title?: string;
-  avatarColor?: string;
+  title?: string | null;
+  avatarColor?: string | null;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  read: boolean;
+  createdAt: string;
 }
 
 // ── Job application tracking (from Gmail) ────────────────────────────────────

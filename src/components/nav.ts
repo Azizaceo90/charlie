@@ -7,6 +7,7 @@ import {
   LineChart,
   type LucideIcon,
   Search,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { Role } from "@/lib/types";
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/sops", label: "SOPs", icon: FileText, color: "#ff5ac4", group: "Workspace" },
   { href: "/contracts", label: "Contracts", icon: FileSignature, color: "#ffcb00", group: "Workspace" },
   { href: "/applicants", label: "Applicants", icon: Users, color: "#e2445c", adminOnly: true, group: "Workspace" },
+  { href: "/team", label: "Team", icon: UserPlus, color: "#784bd1", adminOnly: true, group: "Workspace" },
 ];
 
 export function visibleNav(role: Role): NavItem[] {
