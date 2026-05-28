@@ -30,21 +30,38 @@ interface LiveJob {
   description: string;
 }
 
-const QUICK = [
+const SALES_QUICK = [
   "SDR",
   "BDR",
   "Founding BDR",
   "Sales Development Representative",
   "Account Executive",
 ];
+const MEDICAL_QUICK = [
+  "Medical Coder",
+  "Medical Coding Specialist",
+  "Risk Adjustment Coder",
+  "Outpatient Coder",
+  "Medical Biller",
+];
 
 type Tab = "search" | "saved";
 
 export default function JobSearchPage() {
-  const { listings, addListing, updateListing, applications, addApplication } =
-    useData();
+  const {
+    listings,
+    addListing,
+    updateListing,
+    applications,
+    addApplication,
+    currentUser,
+  } = useData();
+  const isMedical = currentUser?.title === "Medical Coder";
+  const QUICK = isMedical ? MEDICAL_QUICK : SALES_QUICK;
+  const defaultQuery = isMedical ? "Medical Coder" : "Sales Development Representative";
+
   const [tab, setTab] = useState<Tab>("search");
-  const [query, setQuery] = useState("Sales Development Representative");
+  const [query, setQuery] = useState(defaultQuery);
   const [location, setLocation] = useState("");
   const [results, setResults] = useState<LiveJob[]>([]);
   const [loading, setLoading] = useState(false);
@@ -146,7 +163,11 @@ export default function JobSearchPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                 <input
                   className="input pl-9"
-                  placeholder="Search roles, e.g. SDR, BDR, Founding BDR"
+                  placeholder={
+                    isMedical
+                      ? "Search roles, e.g. Medical Coder, Risk Adjustment"
+                      : "Search roles, e.g. SDR, BDR, Founding BDR"
+                  }
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />

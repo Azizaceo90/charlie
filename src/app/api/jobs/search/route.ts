@@ -139,6 +139,8 @@ function mapType(t: string): string {
 function museCategory(q: string): string | null {
   const x = q.toLowerCase();
   if (/sdr|bdr|sales|account exec|business dev|founding/.test(x)) return "Sales";
+  if (/medical cod|coding specialist|cpc|ccs|crc|risk adjust|medical bill|clinical cod|health information/.test(x))
+    return "Healthcare";
   if (/engineer|developer|frontend|backend|fullstack|devops|sre/.test(x))
     return "Software Engineering";
   if (/designer|design|ux|ui/.test(x)) return "Design";
@@ -261,6 +263,31 @@ async function fetchMuse(
 function buildKeywords(q: string): string[] {
   const x = q.toLowerCase().trim();
   if (!x) return [];
+  // Medical-coding family.
+  if (
+    /medical cod|coding specialist|\bcpc\b|\bccs\b|\bcrc\b|risk adjust|medical bill|clinical cod|health information|\bhim\b/.test(
+      x
+    )
+  ) {
+    return [
+      "medical coder",
+      "medical coding",
+      "coding specialist",
+      "clinical coder",
+      "clinical coding",
+      "outpatient coder",
+      "inpatient coder",
+      "risk adjustment coder",
+      "risk adjustment coding",
+      "medical biller",
+      "medical billing",
+      "coding auditor",
+      "him coder",
+      "cpc",
+      "ccs",
+      "crc",
+    ];
+  }
   // Any sales-family search (SDR/BDR/founding/AE) accepts a broad family of
   // front-line sales titles.
   if (
