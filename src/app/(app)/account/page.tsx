@@ -66,6 +66,12 @@ function ProfileSection() {
   const [emergencyPhone, setEmergencyPhone] = useState(
     currentUser?.emergencyPhone ?? ""
   );
+  const [paymentMethod, setPaymentMethod] = useState(
+    currentUser?.paymentMethod ?? "Wise"
+  );
+  const [paymentAccount, setPaymentAccount] = useState(
+    currentUser?.paymentAccount ?? ""
+  );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +86,8 @@ function ProfileSection() {
       phone,
       emergencyName,
       emergencyPhone,
+      paymentMethod,
+      paymentAccount,
     });
     setSaving(false);
     if (err) setError(err);
@@ -145,6 +153,38 @@ function ProfileSection() {
               className="input"
               value={emergencyPhone}
               onChange={(e) => setEmergencyPhone(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label">Payment method</label>
+            <select
+              className="input"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="Wise">Wise</option>
+              <option value="Upwork">Upwork</option>
+              <option value="Payoneer">Payoneer</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">
+              {paymentMethod === "Upwork"
+                ? "Upwork username"
+                : paymentMethod === "Payoneer"
+                  ? "Payoneer email / ID"
+                  : "Wise email / ID"}
+            </label>
+            <input
+              className="input"
+              value={paymentAccount}
+              onChange={(e) => setPaymentAccount(e.target.value)}
+              placeholder={
+                paymentMethod === "Upwork" ? "@username" : "you@example.com"
+              }
             />
           </div>
         </div>

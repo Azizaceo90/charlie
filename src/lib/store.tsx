@@ -27,6 +27,8 @@ export interface ProfileFields {
   phone?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
+  paymentMethod?: string | null;
+  paymentAccount?: string | null;
 }
 
 async function apiCreate<T>(resource: string, input: unknown): Promise<T> {

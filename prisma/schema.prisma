@@ -31,6 +31,8 @@ model User {
   phone          String?
   emergencyName  String?
   emergencyPhone String?
+  paymentMethod  String?
+  paymentAccount String?
   onboardingDone Boolean   @default(false)
 
   timeEntries   TimeEntry[]

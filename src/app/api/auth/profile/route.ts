@@ -16,6 +16,8 @@ export async function PATCH(req: NextRequest) {
     phone?: string | null;
     emergencyName?: string | null;
     emergencyPhone?: string | null;
+    paymentMethod?: string | null;
+    paymentAccount?: string | null;
   };
 
   const required = [
@@ -35,6 +37,8 @@ export async function PATCH(req: NextRequest) {
       phone: body.phone?.toString().trim() || null,
       emergencyName: body.emergencyName?.toString().trim() || null,
       emergencyPhone: body.emergencyPhone?.toString().trim() || null,
+      paymentMethod: body.paymentMethod?.toString().trim() || null,
+      paymentAccount: body.paymentAccount?.toString().trim() || null,
       onboardingDone,
     },
   });

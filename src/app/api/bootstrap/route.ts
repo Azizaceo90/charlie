@@ -71,6 +71,8 @@ export async function GET() {
       phone: me.phone,
       emergencyName: me.emergencyName,
       emergencyPhone: me.emergencyPhone,
+      paymentMethod: me.paymentMethod,
+      paymentAccount: me.paymentAccount,
       onboardingDone: me.onboardingDone,
     },
   });

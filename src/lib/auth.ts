@@ -107,6 +107,8 @@ export interface PublicUser {
   phone?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
+  paymentMethod?: string | null;
+  paymentAccount?: string | null;
   onboardingDone?: boolean;
 }
 
@@ -123,6 +125,8 @@ export function publicUser(u: {
   phone?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
+  paymentMethod?: string | null;
+  paymentAccount?: string | null;
   onboardingDone?: boolean;
 }): PublicUser {
   return {
@@ -141,6 +145,8 @@ export function publicUser(u: {
     phone: u.phone ?? null,
     emergencyName: u.emergencyName ?? null,
     emergencyPhone: u.emergencyPhone ?? null,
+    paymentMethod: u.paymentMethod ?? null,
+    paymentAccount: u.paymentAccount ?? null,
     onboardingDone: Boolean(u.onboardingDone),
   };
 }
