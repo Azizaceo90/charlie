@@ -43,17 +43,20 @@ export default function JobSearchPage() {
     useData();
   const [tab, setTab] = useState<Tab>("search");
   const [query, setQuery] = useState("Sales Development Representative");
+  const [location, setLocation] = useState("");
   const [results, setResults] = useState<LiveJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, loc: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/jobs/search?q=${encodeURIComponent(q)}`);
+      const params = new URLSearchParams({ q });
+      if (loc.trim()) params.set("loc", loc.trim());
+      const res = await fetch(`/api/jobs/search?${params.toString()}`);
       const data = await res.json();
       setResults(data.jobs ?? []);
       if (data.error) setError(data.error);
@@ -66,13 +69,13 @@ export default function JobSearchPage() {
   }, []);
 
   useEffect(() => {
-    runSearch(query);
+    runSearch(query, location);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    runSearch(query);
+    runSearch(query, location);
   }
 
   async function save(job: LiveJob) {
@@ -136,6 +139,15 @@ export default function JobSearchPage() {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
+              <div className="relative sm:w-56">
+                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <input
+                  className="input pl-9"
+                  placeholder="Location (Remote, NYC…)"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
               <button type="submit" className="btn-primary" disabled={loading}>
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -151,7 +163,7 @@ export default function JobSearchPage() {
                   key={q}
                   onClick={() => {
                     setQuery(q);
-                    runSearch(q);
+                    runSearch(q, location);
                   }}
                   className="rounded-full border border-line bg-bg-card px-3 py-1 text-xs font-medium text-neutral-600 hover:border-brand hover:text-brand"
                 >
