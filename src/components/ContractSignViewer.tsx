@@ -38,7 +38,7 @@ export default function ContractSignViewer({
   return (
     <div
       ref={wrapRef}
-      className="relative inline-block max-w-full overflow-auto rounded-lg border border-line bg-white"
+      className="relative inline-block max-w-full rounded-lg border border-line bg-white"
     >
       <canvas ref={canvasRef} className="block max-w-full" />
       {fields
@@ -62,7 +62,11 @@ export default function ContractSignViewer({
           const placeholder =
             f.type === "date"
               ? "MM/DD/YYYY"
-              : f.type[0].toUpperCase() + f.type.slice(1);
+              : f.type === "email"
+                ? "you@example.com"
+                : f.type === "country"
+                  ? "Country"
+                  : f.type[0].toUpperCase() + f.type.slice(1);
           return (
             <input
               key={f.id}

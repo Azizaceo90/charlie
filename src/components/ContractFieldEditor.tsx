@@ -15,8 +15,10 @@ interface ToolDef {
 const TOOLS: ToolDef[] = [
   { type: "name", label: "Name", w: 200, h: 28 },
   { type: "date", label: "Date", w: 120, h: 28 },
+  { type: "email", label: "Email", w: 220, h: 28 },
   { type: "address", label: "Address", w: 280, h: 28 },
   { type: "phone", label: "Phone", w: 160, h: 28 },
+  { type: "country", label: "Country", w: 160, h: 28 },
   { type: "signature", label: "Signature", w: 200, h: 70 },
 ];
 
@@ -126,7 +128,7 @@ export default function ContractFieldEditor({
       <div
         ref={wrapRef}
         onClick={handleCanvasClick}
-        className={`relative inline-block max-w-full overflow-auto rounded-lg border border-line bg-white ${
+        className={`relative inline-block max-w-full rounded-lg border border-line bg-white ${
           tool ? "cursor-crosshair" : "cursor-default"
         }`}
       >

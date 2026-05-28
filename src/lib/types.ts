@@ -93,7 +93,7 @@ export interface SopDoc {
 // ── Contracts ────────────────────────────────────────────────────────────────
 export interface ContractField {
   id: string;
-  type: "name" | "date" | "signature" | "address" | "phone";
+  type: "name" | "date" | "signature" | "address" | "phone" | "email" | "country";
   /** 1-based page index this field sits on */
   page: number;
   /** Position + size as a fraction of the page width/height (top-left origin). */
