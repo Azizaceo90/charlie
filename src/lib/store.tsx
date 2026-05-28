@@ -87,6 +87,7 @@ interface AppData {
   updateApplicant: (id: string, patch: Partial<Applicant>) => Promise<void>;
 
   listings: JobListing[];
+  addListing: (input: Omit<JobListing, "id">) => Promise<JobListing>;
   updateListing: (id: string, patch: Partial<JobListing>) => Promise<void>;
 
   gmail: GmailStatus;
@@ -239,6 +240,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ── Listings ──
+  const addListing = useCallback(async (input: Omit<JobListing, "id">) => {
+    const created = await apiCreate<JobListing>("listings", input);
+    setListings((prev) => [created, ...prev]);
+    return created;
+  }, []);
   const updateListing = useCallback(
     async (id: string, patch: Partial<JobListing>) => {
       const updated = await apiPatch<JobListing>("listings", id, patch);
@@ -271,6 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     addApplicant,
     updateApplicant,
     listings,
+    addListing,
     updateListing,
     gmail,
     setGmail,
