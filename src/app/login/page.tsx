@@ -14,7 +14,9 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (ready && currentUser) router.replace("/dashboard");
+    if (ready && currentUser) {
+      router.replace(currentUser.role === "admin" ? "/dashboard" : "/contracts");
+    }
   }, [ready, currentUser, router]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -24,7 +26,7 @@ export default function LoginPage() {
     const err = await login(email.trim(), password);
     setSubmitting(false);
     if (err) setError(err);
-    else router.replace("/dashboard");
+    else router.replace("/");
   }
 
   return (

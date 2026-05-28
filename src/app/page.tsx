@@ -10,7 +10,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!ready) return;
-    router.replace(currentUser ? "/dashboard" : "/login");
+    if (!currentUser) {
+      router.replace("/login");
+    } else {
+      router.replace(currentUser.role === "admin" ? "/dashboard" : "/contracts");
+    }
   }, [ready, currentUser, router]);
 
   return (

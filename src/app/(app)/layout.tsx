@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useData } from "@/lib/store";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import Topbar from "@/components/Topbar";
+
+const ADMIN_PATHS = [
+  "/dashboard",
+  "/applications",
+  "/time-tracker",
+  "/insights",
+  "/job-search",
+  "/applicants",
+  "/team",
+];
 
 export default function AppLayout({
   children,
@@ -14,10 +24,21 @@ export default function AppLayout({
 }) {
   const { ready, currentUser } = useData();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (ready && !currentUser) router.replace("/login");
-  }, [ready, currentUser, router]);
+    if (!ready) return;
+    if (!currentUser) {
+      router.replace("/login");
+      return;
+    }
+    if (
+      currentUser.role !== "admin" &&
+      ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+    ) {
+      router.replace("/contracts");
+    }
+  }, [ready, currentUser, pathname, router]);
 
   if (!ready || !currentUser) {
     return (

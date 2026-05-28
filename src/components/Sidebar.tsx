@@ -46,9 +46,11 @@ export default function Sidebar() {
           if (!groupItems.length) return null;
           return (
             <div key={group}>
-              <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                {group}
-              </div>
+              {currentUser.role === "admin" && (
+                <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {group}
+                </div>
+              )}
               <div className="space-y-0.5">
                 {groupItems.map((item) => {
                   const active =
