@@ -347,11 +347,28 @@ export async function GET(req: NextRequest) {
     // Geo filter: only remote roles open to US or Canada candidates.
     filtered = filtered.filter((j) => isRemoteUsCanada(j.location, j.source));
 
+    // Drop postings older than 90 days — they're usually stale or filled.
+    const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+    filtered = filtered.filter((j) => {
+      const t = new Date(j.postedAt).getTime();
+      return !isNaN(t) && Date.now() - t < MAX_AGE_MS;
+    });
+
     // Optional further substring filter from the user (city, etc.).
     if (loc)
       filtered = filtered.filter((j) => j.location.toLowerCase().includes(loc));
 
+    // Sort newest first, then de-dupe by company + title so the same role
+    // listed across multiple cities collapses to one entry.
     filtered.sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
+    const byRole = new Map<string, NormalizedJob>();
+    for (const j of filtered) {
+      const key = `${j.company.toLowerCase().trim()}|${j.title
+        .toLowerCase()
+        .trim()}`;
+      if (!byRole.has(key)) byRole.set(key, j);
+    }
+    filtered = Array.from(byRole.values());
 
     return NextResponse.json({
       jobs: filtered.slice(0, 200),
