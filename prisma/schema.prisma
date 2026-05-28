@@ -88,6 +88,7 @@ model TimeEntry {
   note            String?
   chartsCoded     Int       @default(0)
   claimsProcessed Int       @default(0)
+  submittedAt     DateTime?
 }
 
 model SopDoc {

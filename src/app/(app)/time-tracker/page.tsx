@@ -46,8 +46,14 @@ export default function TimeTrackerPage() {
 }
 
 function PersonalTracker() {
-  const { currentUser, timeEntries, addTimeEntry, updateTimeEntry, removeTimeEntry } =
-    useData();
+  const {
+    currentUser,
+    timeEntries,
+    addTimeEntry,
+    updateTimeEntry,
+    removeTimeEntry,
+    submitTimesheet,
+  } = useData();
   const [tick, setTick] = useState(Date.now());
   const projects = projectsFor(currentUser?.title);
   const [project, setProject] = useState(projects[0]);
@@ -208,6 +214,11 @@ function PersonalTracker() {
           </div>
         </div>
       </div>
+
+      <WeeklySubmitPanel
+        entries={myEntries}
+        onSubmit={submitTimesheet}
+      />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-neutral-900">Entries</h2>
@@ -602,6 +613,96 @@ function ChartsCodedInput({
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
       />
+    </div>
+  );
+}
+
+function weekStartLocal(d: Date): Date {
+  const out = new Date(d);
+  const day = out.getDay();
+  const diff = (day + 6) % 7;
+  out.setDate(out.getDate() - diff);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function WeeklySubmitPanel({
+  entries,
+  onSubmit,
+}: {
+  entries: TimeEntry[];
+  onSubmit: () => Promise<{ submitted: number; message?: string }>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const start = weekStartLocal(new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  const weekEntries = entries.filter((e) => {
+    const t = new Date(e.clockIn).getTime();
+    return t >= start.getTime() && t < end.getTime() && e.clockOut;
+  });
+  const totalMins = weekEntries.reduce((s, e) => {
+    return s + (new Date(e.clockOut!).getTime() - new Date(e.clockIn).getTime()) / 60000;
+  }, 0);
+  const totalCharts = weekEntries.reduce(
+    (s, e) => s + (e.chartsCoded ?? 0),
+    0
+  );
+  const unsubmitted = weekEntries.filter((e) => !e.submittedAt);
+  const submittedAt = weekEntries.find((e) => e.submittedAt)?.submittedAt;
+  const allSubmitted = unsubmitted.length === 0 && weekEntries.length > 0;
+
+  async function handle() {
+    setBusy(true);
+    const res = await onSubmit();
+    setBusy(false);
+    setToast(
+      res.submitted > 0
+        ? `Submitted ${res.submitted} entries for the week.`
+        : res.message ?? "Nothing to submit."
+    );
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  const label = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <div className="card mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+          Week of {label}
+        </div>
+        <div className="mt-1 text-sm text-neutral-700">
+          {minutesToHm(totalMins)} ·{" "}
+          {totalCharts > 0 ? `${totalCharts} charts · ` : ""}
+          {weekEntries.length} entr{weekEntries.length === 1 ? "y" : "ies"}
+        </div>
+        {allSubmitted && submittedAt && (
+          <div className="mt-1 text-xs text-accent-green">
+            Submitted on {new Date(submittedAt).toLocaleString()}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {toast && <span className="text-xs text-neutral-500">{toast}</span>}
+        <button
+          className="btn-primary"
+          onClick={handle}
+          disabled={busy || unsubmitted.length === 0}
+          title={
+            unsubmitted.length === 0
+              ? "Nothing to submit"
+              : `Submit ${unsubmitted.length} entries`
+          }
+        >
+          {allSubmitted ? "Resubmit" : "Submit timesheet"}
+        </button>
+      </div>
     </div>
   );
 }

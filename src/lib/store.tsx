@@ -110,6 +110,7 @@ interface AppData {
   addTimeEntry: (input: Omit<TimeEntry, "id">) => Promise<TimeEntry>;
   updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => Promise<void>;
   removeTimeEntry: (id: string) => Promise<void>;
+  submitTimesheet: () => Promise<{ submitted: number; message?: string }>;
 
   sops: SopDoc[];
   addSop: (input: Omit<SopDoc, "id">) => Promise<SopDoc>;
@@ -421,6 +422,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setTimeEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const submitTimesheet = useCallback(async () => {
+    const res = await fetch("/api/time-entries/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { submitted: 0, message: data.error ?? "Submit failed" };
+    if (Array.isArray(data.entries)) {
+      const byId = new Map<string, TimeEntry>(
+        (data.entries as TimeEntry[]).map((e) => [e.id, e])
+      );
+      setTimeEntries((prev) =>
+        prev.map((e) => (byId.has(e.id) ? (byId.get(e.id) as TimeEntry) : e))
+      );
+    }
+    return { submitted: data.submitted ?? 0, message: data.message };
+  }, []);
+
   // ── SOPs ──
   const addSop = useCallback(async (input: Omit<SopDoc, "id">) => {
     const created = await apiCreate<SopDoc>("sops", input);
@@ -516,6 +536,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     addTimeEntry,
     updateTimeEntry,
     removeTimeEntry,
+    submitTimesheet,
     sops,
     addSop,
     removeSop,

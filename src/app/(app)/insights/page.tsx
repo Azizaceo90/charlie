@@ -294,7 +294,115 @@ export default function InsightsPage() {
           </ResponsiveContainer>
         </Card>
       </div>
+
+      <SubmittedTimesheetsTable />
     </div>
+  );
+}
+
+function SubmittedTimesheetsTable() {
+  const { currentUser, users, timeEntries } = useData();
+  if (currentUser?.role !== "admin") return null;
+
+  // Group submitted entries by user + week start (Monday local).
+  const rows = (() => {
+    const map = new Map<
+      string,
+      {
+        userId: string;
+        userName: string;
+        weekStart: Date;
+        minutes: number;
+        charts: number;
+        submittedAt: string;
+      }
+    >();
+    for (const e of timeEntries) {
+      if (!e.submittedAt || !e.clockOut) continue;
+      const start = new Date(e.clockIn);
+      const day = start.getDay();
+      start.setDate(start.getDate() - ((day + 6) % 7));
+      start.setHours(0, 0, 0, 0);
+      const key = `${e.userId}|${start.toISOString().slice(0, 10)}`;
+      const mins =
+        (new Date(e.clockOut).getTime() - new Date(e.clockIn).getTime()) /
+        60000;
+      const existing = map.get(key);
+      const user = users.find((u) => u.id === e.userId);
+      const name = user?.name ?? "Unknown";
+      if (existing) {
+        existing.minutes += mins;
+        existing.charts += e.chartsCoded ?? 0;
+        if (e.submittedAt > existing.submittedAt)
+          existing.submittedAt = e.submittedAt;
+      } else {
+        map.set(key, {
+          userId: e.userId,
+          userName: name,
+          weekStart: start,
+          minutes: mins,
+          charts: e.chartsCoded ?? 0,
+          submittedAt: e.submittedAt,
+        });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => (a.submittedAt < b.submittedAt ? 1 : -1)
+    );
+  })();
+
+  return (
+    <Card className="mt-6 overflow-hidden">
+      <div className="border-b border-line px-5 py-3 text-sm font-medium text-neutral-900">
+        Submitted timesheets
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-5 py-8 text-center text-sm text-neutral-400">
+          No timesheets submitted yet.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-neutral-500">
+                <th className="px-5 py-2 font-medium">Employee</th>
+                <th className="px-5 py-2 font-medium">Week of</th>
+                <th className="px-5 py-2 font-medium">Hours</th>
+                <th className="px-5 py-2 font-medium">Charts</th>
+                <th className="px-5 py-2 font-medium">Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={`${r.userId}-${r.weekStart.toISOString()}`}
+                  className="border-b border-line last:border-0"
+                >
+                  <td className="px-5 py-2.5 font-medium text-neutral-900">
+                    {r.userName}
+                  </td>
+                  <td className="px-5 py-2.5 text-neutral-700">
+                    {r.weekStart.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </td>
+                  <td className="px-5 py-2.5 tabular-nums text-neutral-700">
+                    {minutesToHm(r.minutes)}
+                  </td>
+                  <td className="px-5 py-2.5 tabular-nums text-neutral-700">
+                    {r.charts || "—"}
+                  </td>
+                  <td className="px-5 py-2.5 text-xs text-neutral-500">
+                    {new Date(r.submittedAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }
 
