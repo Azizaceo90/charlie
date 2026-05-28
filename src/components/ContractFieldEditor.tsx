@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { ContractField } from "@/lib/types";
-import { renderFirstPage } from "@/lib/pdfRender";
+import { loadPdfPages, PageRenderInfo } from "@/lib/pdfRender";
 
 interface ToolDef {
   type: ContractField["type"];
@@ -31,37 +31,46 @@ export default function ContractFieldEditor({
   value: ContractField[];
   onChange: (fields: ContractField[]) => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [pages, setPages] = useState<PageRenderInfo[]>([]);
   const [tool, setTool] = useState<ContractField["type"] | null>(null);
-  const [dim, setDim] = useState({ w: 800, h: 1000 });
 
   useEffect(() => {
-    if (!canvasRef.current) return;
     let active = true;
-    renderFirstPage(canvasRef.current, pdfDataUrl, 1.4).then((d) => {
-      if (active) setDim(d);
+    loadPdfPages(pdfDataUrl, 1.4).then((p) => {
+      if (active) setPages(p);
     });
     return () => {
       active = false;
     };
   }, [pdfDataUrl]);
 
-  function handleCanvasClick(e: React.MouseEvent) {
-    if (!tool || !wrapRef.current) return;
+  useEffect(() => {
+    pages.forEach((p, idx) => {
+      const c = canvasRefs.current[idx];
+      if (c) p.render(c).catch(() => {});
+    });
+  }, [pages]);
+
+  function placeOnPage(pageNum: number, e: React.MouseEvent) {
+    if (!tool) return;
+    const idx = pageNum - 1;
+    const pageDim = pages[idx];
+    const pageEl = pageRefs.current[idx];
+    if (!pageDim || !pageEl) return;
     const t = TOOLS.find((x) => x.type === tool)!;
-    const rect = wrapRef.current.getBoundingClientRect();
-    // Add wrap scroll so clicks far down the document map to the right spot.
-    const x = e.clientX - rect.left + wrapRef.current.scrollLeft;
-    const y = e.clientY - rect.top + wrapRef.current.scrollTop;
+    const rect = pageEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const f: ContractField = {
       id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       type: tool,
-      page: 1,
-      xRatio: Math.max(0, Math.min(1 - t.w / dim.w, x / dim.w)),
-      yRatio: Math.max(0, Math.min(1 - t.h / dim.h, y / dim.h)),
-      wRatio: t.w / dim.w,
-      hRatio: t.h / dim.h,
+      page: pageNum,
+      xRatio: Math.max(0, Math.min(1 - t.w / pageDim.width, x / pageDim.width)),
+      yRatio: Math.max(0, Math.min(1 - t.h / pageDim.height, y / pageDim.height)),
+      wRatio: t.w / pageDim.width,
+      hRatio: t.h / pageDim.height,
     };
     onChange([...value, f]);
     setTool(null);
@@ -70,15 +79,17 @@ export default function ContractFieldEditor({
   function dragStart(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    const startX = e.clientX;
-    const startY = e.clientY;
     const field = value.find((f) => f.id === id);
     if (!field) return;
+    const pageDim = pages[field.page - 1];
+    if (!pageDim) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
     const initX = field.xRatio;
     const initY = field.yRatio;
     function move(ev: MouseEvent) {
-      const dx = (ev.clientX - startX) / dim.w;
-      const dy = (ev.clientY - startY) / dim.h;
+      const dx = (ev.clientX - startX) / pageDim.width;
+      const dy = (ev.clientY - startY) / pageDim.height;
       onChange(
         value.map((f) =>
           f.id === id
@@ -107,7 +118,7 @@ export default function ContractFieldEditor({
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-neutral-500">
-          Click a field type then click on the document to place it.
+          Pick a field type then click on a page to place it.
         </span>
         <div className="flex flex-wrap gap-1">
           {TOOLS.map((t) => (
@@ -126,44 +137,66 @@ export default function ContractFieldEditor({
           ))}
         </div>
       </div>
-      <div
-        ref={wrapRef}
-        onClick={handleCanvasClick}
-        className={`relative max-h-[70vh] overflow-auto rounded-lg border border-line bg-white ${
-          tool ? "cursor-crosshair" : "cursor-default"
-        }`}
-      >
-        <canvas ref={canvasRef} className="block" />
-        {value
-          .filter((f) => f.page === 1)
-          .map((f) => (
-            <div
-              key={f.id}
-              onMouseDown={(e) => dragStart(f.id, e)}
-              className="absolute cursor-move rounded border-2 border-dashed border-brand bg-brand/15 text-[10px] font-semibold uppercase tracking-wider text-brand"
-              style={{
-                left: f.xRatio * dim.w,
-                top: f.yRatio * dim.h,
-                width: f.wRatio * dim.w,
-                height: f.hRatio * dim.h,
+
+      <div className="max-h-[70vh] space-y-2 overflow-auto rounded-lg border border-line bg-bg-soft p-2">
+        {pages.length === 0 && (
+          <div className="py-10 text-center text-xs text-neutral-400">
+            Loading document…
+          </div>
+        )}
+        {pages.map((p, idx) => (
+          <div
+            key={p.page}
+            ref={(el) => {
+              pageRefs.current[idx] = el;
+            }}
+            onClick={(e) => placeOnPage(p.page, e)}
+            className={`relative inline-block bg-white shadow-sm ${
+              tool ? "cursor-crosshair" : "cursor-default"
+            }`}
+            style={{ width: p.width, height: p.height }}
+          >
+            <canvas
+              ref={(el) => {
+                canvasRefs.current[idx] = el;
               }}
-            >
-              <div className="flex items-center justify-between gap-1 px-1 pt-0.5">
-                <span>{f.type}</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    remove(f.id);
+              className="block"
+            />
+            {value
+              .filter((f) => f.page === p.page)
+              .map((f) => (
+                <div
+                  key={f.id}
+                  onMouseDown={(e) => dragStart(f.id, e)}
+                  className="absolute cursor-move rounded border-2 border-dashed border-brand bg-brand/15 text-[10px] font-semibold uppercase tracking-wider text-brand"
+                  style={{
+                    left: f.xRatio * p.width,
+                    top: f.yRatio * p.height,
+                    width: f.wRatio * p.width,
+                    height: f.hRatio * p.height,
                   }}
-                  className="text-brand hover:text-accent-red"
-                  title="Remove field"
                 >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
+                  <div className="flex items-center justify-between gap-1 px-1 pt-0.5">
+                    <span>{f.type}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(f.id);
+                      }}
+                      className="text-brand hover:text-accent-red"
+                      title="Remove field"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            <div className="absolute right-2 top-2 rounded bg-neutral-900/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              Page {p.page} / {pages.length}
             </div>
-          ))}
+          </div>
+        ))}
       </div>
     </div>
   );
