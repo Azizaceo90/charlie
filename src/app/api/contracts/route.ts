@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
         ? JSON.stringify(body.fields)
         : null;
 
+  const dataUrl = String(body.dataUrl ?? "");
   const contract = await prisma.contract.create({
     data: {
       title: String(body.title ?? "Contract"),
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
       assignedToName: String(body.assignedToName ?? ""),
       status: "pending",
       fileName: String(body.fileName ?? "contract.pdf"),
-      dataUrl: String(body.dataUrl ?? ""),
+      dataUrl,
+      originalDataUrl: dataUrl,
       fields: fieldsValue,
       issuedAt: body.issuedAt ? new Date(String(body.issuedAt)) : new Date(),
     },

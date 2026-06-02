@@ -114,6 +114,7 @@ model Contract {
   status           String // pending | signed
   fileName         String
   dataUrl          String
+  originalDataUrl  String?
   fields           String? // JSON array of fillable field placements
   issuedAt         DateTime  @default(now())
   signedAt         DateTime?

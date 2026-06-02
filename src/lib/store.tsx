@@ -125,6 +125,7 @@ interface AppData {
   contracts: Contract[];
   addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
   removeContract: (id: string) => Promise<void>;
+  reopenContract: (id: string) => Promise<void>;
   signContract: (
     id: string,
     body: {
@@ -494,6 +495,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     await apiDelete("contracts", id);
     setContracts((prev) => prev.filter((c) => c.id !== id));
   }, []);
+  const reopenContract = useCallback(async (id: string) => {
+    const res = await fetch(`/api/contracts/${id}/reopen`, { method: "POST" });
+    if (!res.ok) throw new Error("Reopen failed");
+    const updated = (await res.json()) as Contract;
+    setContracts((prev) => prev.map((c) => (c.id === id ? updated : c)));
+  }, []);
   const signContract = useCallback(
     async (
       id: string,
@@ -581,6 +588,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     contracts,
     addContract,
     removeContract,
+    reopenContract,
     signContract,
     applicants,
     addApplicant,

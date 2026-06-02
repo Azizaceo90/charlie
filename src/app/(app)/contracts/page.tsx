@@ -25,6 +25,7 @@ export default function ContractsPage() {
     contracts,
     addContract,
     removeContract,
+    reopenContract,
     signContract,
   } = useData();
   const isAdmin = currentUser?.role === "admin";
@@ -196,9 +197,32 @@ export default function ContractsPage() {
                   </div>
                 </div>
                 {selected.status === "signed" && (
-                  <span className="chip bg-accent-green/15 text-accent-green">
-                    <CheckCircle2 className="h-3 w-3" /> Signed
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="chip bg-accent-green/15 text-accent-green">
+                      <CheckCircle2 className="h-3 w-3" /> Signed
+                    </span>
+                    {isAdmin && (
+                      <button
+                        onClick={async () => {
+                          if (
+                            !window.confirm(
+                              `Re-open "${selected.title}"? The signature will be cleared and ${selected.assignedToName} will be asked to sign again.`
+                            )
+                          )
+                            return;
+                          try {
+                            await reopenContract(selected.id);
+                          } catch {
+                            window.alert("Could not re-open. Try again.");
+                          }
+                        }}
+                        className="btn-ghost text-xs"
+                        title="Clear the signature and send back for re-sign"
+                      >
+                        <PenLine className="h-3.5 w-3.5" /> Re-open
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
