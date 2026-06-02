@@ -3,10 +3,11 @@
 import { useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
+  Clock,
   FileSignature,
   PenLine,
   Plus,
-  Clock,
+  Trash2,
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import { Contract, ContractField, parseContractFields } from "@/lib/types";
@@ -18,9 +19,30 @@ import ContractSignViewer from "@/components/ContractSignViewer";
 import { ago, dateOnly } from "@/lib/format";
 
 export default function ContractsPage() {
-  const { currentUser, users, contracts, addContract, signContract } =
-    useData();
+  const {
+    currentUser,
+    users,
+    contracts,
+    addContract,
+    removeContract,
+    signContract,
+  } = useData();
   const isAdmin = currentUser?.role === "admin";
+
+  async function handleDelete(c: Contract) {
+    if (
+      !window.confirm(
+        `Delete "${c.title}" assigned to ${c.assignedToName}? The employee will no longer see this contract.`
+      )
+    )
+      return;
+    try {
+      await removeContract(c.id);
+      if (selectedId === c.id) setSelectedId(null);
+    } catch {
+      window.alert("Could not delete the contract. Try again.");
+    }
+  }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showIssue, setShowIssue] = useState(false);
 
@@ -135,6 +157,26 @@ export default function ContractsPage() {
                 >
                   {c.status}
                 </span>
+                {isAdmin && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(c);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        handleDelete(c);
+                      }
+                    }}
+                    className="ml-1 rounded-md p-1 text-neutral-400 hover:bg-bg-card hover:text-accent-red"
+                    title="Delete contract"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </span>
+                )}
               </button>
             ))
           )}

@@ -124,6 +124,7 @@ interface AppData {
 
   contracts: Contract[];
   addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
+  removeContract: (id: string) => Promise<void>;
   signContract: (
     id: string,
     body: {
@@ -489,6 +490,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setContracts((prev) => [created, ...prev]);
     return created;
   }, []);
+  const removeContract = useCallback(async (id: string) => {
+    await apiDelete("contracts", id);
+    setContracts((prev) => prev.filter((c) => c.id !== id));
+  }, []);
   const signContract = useCallback(
     async (
       id: string,
@@ -575,6 +580,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     removeSop,
     contracts,
     addContract,
+    removeContract,
     signContract,
     applicants,
     addApplicant,
