@@ -12,8 +12,46 @@ const TOKEN_ID = "default";
 
 export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+const MONTHS: Record<string, number> = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11,
+};
+
+/** Best-effort date+time extraction from an interview email. */
+export function parseInterviewSlot(
+  text: string
+): { start: Date; end: Date } | null {
+  const dateMatch = text.match(
+    /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
+  );
+  const timeMatch = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if (!dateMatch || !timeMatch) return null;
+  const month = MONTHS[dateMatch[1].toLowerCase()];
+  if (month === undefined) return null;
+  const day = parseInt(dateMatch[2], 10);
+  const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : new Date().getFullYear();
+  let hour = parseInt(timeMatch[1], 10);
+  const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+  if (/pm/i.test(timeMatch[3]) && hour < 12) hour += 12;
+  if (/am/i.test(timeMatch[3]) && hour === 12) hour = 0;
+  const start = new Date(year, month, day, hour, minute);
+  if (Number.isNaN(start.getTime())) return null;
+  return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
+}
 
 export function isConfigured(): boolean {
   return Boolean(
@@ -98,6 +136,48 @@ function header(
 }
 
 /**
+ * Creates a Google Calendar event for a detected interview email. Idempotent:
+ * skips if an event already exists with the same Gmail message id tag.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function ensureInterviewEvent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient: any,
+  args: {
+    messageId: string;
+    company: string;
+    subject: string;
+    from: string;
+    snippet: string;
+  }
+): Promise<void> {
+  const cal = google.calendar({ version: "v3", auth: authClient });
+  // De-dup: any existing event tagged with this message id?
+  const existing = await cal.events.list({
+    calendarId: "primary",
+    privateExtendedProperty: [`gmailMsgId=${args.messageId}`],
+    maxResults: 1,
+  });
+  if ((existing.data.items ?? []).length > 0) return;
+
+  const slot = parseInterviewSlot(`${args.subject}\n${args.snippet}`);
+  if (!slot) return; // no parseable date/time → don't guess
+
+  await cal.events.insert({
+    calendarId: "primary",
+    requestBody: {
+      summary: `Interview: ${args.company}`,
+      description: `${args.subject}\n\nFrom: ${args.from}\n\nAdded automatically by Career Ops.`,
+      start: { dateTime: slot.start.toISOString() },
+      end: { dateTime: slot.end.toISOString() },
+      extendedProperties: {
+        private: { gmailMsgId: args.messageId, source: "career-ops" },
+      },
+    },
+  });
+}
+
+/**
  * Fetches recent inbox messages, classifies the job-related ones, and returns
  * a de-duplicated list of applications (most recent status per company+role).
  */
@@ -162,9 +242,10 @@ export async function fetchApplications(): Promise<JobApplication[]> {
       if (!status) continue;
 
       const dateMs = Number(data.internalDate ?? Date.now());
+      const company = extractCompany(subject, from);
       found.push({
         id: data.id,
-        company: extractCompany(subject, from),
+        company,
         role: extractRole(subject) || "Role not specified",
         status,
         date: new Date(dateMs).toISOString(),
@@ -172,6 +253,22 @@ export async function fetchApplications(): Promise<JobApplication[]> {
         emailSubject: subject,
         emailFrom: from,
       });
+
+      // If it's an interview email, try to auto-create a Google Calendar
+      // event at the parsed date/time (idempotent by gmail message id).
+      if (status === "interview") {
+        try {
+          await ensureInterviewEvent(client, {
+            messageId: data.id,
+            company,
+            subject,
+            from,
+            snippet,
+          });
+        } catch {
+          /* don't fail the sync if calendar isn't authorized */
+        }
+      }
     }
   }
 
