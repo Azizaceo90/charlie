@@ -65,6 +65,8 @@ function ApplicationsInner() {
   const [toast, setToast] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [calTest, setCalTest] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
   const params = useSearchParams();
 
   // Refresh "now" each minute so range buckets stay accurate.
@@ -205,6 +207,34 @@ function ApplicationsInner() {
     }
   }
 
+  async function runCalendarTest() {
+    setTesting(true);
+    setCalTest(null);
+    try {
+      const res = await fetch("/api/gmail/calendar-test", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setCalTest(
+          `✓ Calendar write succeeded — test event created for tomorrow. Check your Google Calendar to see it. You can delete it.`
+        );
+      } else if (data.stage === "scope") {
+        setCalTest(
+          `✗ ${data.error}\n\nGranted scopes:\n${(data.grantedScopes || []).join("\n")}`
+        );
+      } else {
+        setCalTest(
+          `✗ Calendar API error (${data.code ?? "?"}): ${data.error}\n\nGranted scopes:\n${(data.grantedScopes || []).join("\n")}${data.detail ? `\n\nDetail: ${JSON.stringify(data.detail, null, 2)}` : ""}`
+        );
+      }
+    } catch (err) {
+      setCalTest(
+        `✗ Test request failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    } finally {
+      setTesting(false);
+    }
+  }
+
   async function disconnect() {
     await fetch("/api/gmail/disconnect", { method: "POST" });
     setGmail({ ...gmail, connected: false, email: undefined });
@@ -261,6 +291,14 @@ function ApplicationsInner() {
                   />
                   {syncing ? "Syncing…" : "Sync now"}
                 </button>
+                <button
+                  className="btn-ghost"
+                  onClick={runCalendarTest}
+                  disabled={testing}
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  {testing ? "Testing…" : "Test calendar"}
+                </button>
                 <button className="btn-subtle" onClick={disconnect}>
                   <Unplug className="h-4 w-4" /> Disconnect
                 </button>
@@ -300,6 +338,12 @@ function ApplicationsInner() {
             Google Calendar connected — interview emails will be added
             automatically (checked every 15 minutes).
           </span>
+        </div>
+      )}
+
+      {calTest && (
+        <div className="mb-5 whitespace-pre-wrap rounded-lg border border-line bg-bg-card px-4 py-3 font-mono text-xs text-neutral-800">
+          {calTest}
         </div>
       )}
 
