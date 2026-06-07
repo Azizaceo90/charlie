@@ -61,6 +61,7 @@ export interface GmailStatus {
   configured: boolean;
   email?: string;
   lastSynced?: string;
+  calendarAuthorized?: boolean;
 }
 
 interface AppData {

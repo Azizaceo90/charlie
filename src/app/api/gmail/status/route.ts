@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isConfigured, readTokens } from "@/lib/gmailServer";
+import { hasCalendarScope, isConfigured, readTokens } from "@/lib/gmailServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,5 +11,6 @@ export async function GET() {
     connected: stored !== null,
     email: stored?.email,
     lastSynced: stored?.lastSynced,
+    calendarAuthorized: await hasCalendarScope(),
   });
 }

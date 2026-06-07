@@ -107,8 +107,33 @@ function ApplicationsInner() {
       if (res.ok) {
         const data = await res.json();
         setApplicationsAll(data.applications ?? []);
-        setGmail({ ...gmail, connected: true, lastSynced: data.syncedAt });
-        setToast(`Synced ${data.synced ?? 0} applications from Gmail.`);
+        const iv = data.interviews as
+          | {
+              interviews: number;
+              eventsCreated: number;
+              eventsSkippedExisting: number;
+              eventsErrored: number;
+              lastCalendarError?: string;
+              calendarAuthorized: boolean;
+            }
+          | undefined;
+        setGmail({
+          ...gmail,
+          connected: true,
+          lastSynced: data.syncedAt,
+          calendarAuthorized: iv?.calendarAuthorized ?? gmail.calendarAuthorized,
+        });
+        let msg = `Synced ${data.synced ?? 0} applications from Gmail.`;
+        if (iv && iv.interviews > 0) {
+          if (!iv.calendarAuthorized) {
+            msg += ` ${iv.interviews} interview${iv.interviews === 1 ? "" : "s"} found but calendar permission missing — reconnect Gmail and approve calendar access.`;
+          } else if (iv.eventsCreated > 0) {
+            msg += ` Added ${iv.eventsCreated} interview${iv.eventsCreated === 1 ? "" : "s"} to your Google Calendar.`;
+          } else if (iv.eventsErrored > 0 && iv.lastCalendarError) {
+            msg += ` Calendar issue: ${iv.lastCalendarError}`;
+          }
+        }
+        setToast(msg);
       } else if (res.status === 401) {
         setToast("Gmail isn't connected yet.");
       } else {
@@ -195,6 +220,20 @@ function ApplicationsInner() {
         onConnect={connect}
         onLearnMore={() => setShowHelp(true)}
       />
+
+      {gmail.connected && gmail.calendarAuthorized === false && (
+        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-4 py-3 text-sm sm:flex-row sm:items-center">
+          <CalendarClock className="h-5 w-5 shrink-0 text-accent-amber" />
+          <span className="text-neutral-800">
+            Interview emails won&apos;t auto-add to Google Calendar — your Gmail
+            connection is missing calendar permission. Reconnect and tick the
+            <strong> calendar </strong> box on the consent screen.
+          </span>
+          <button className="btn-primary text-xs sm:ml-auto" onClick={connect}>
+            Reconnect Gmail
+          </button>
+        </div>
+      )}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <RangeFilter value={range} onChange={setRange} />

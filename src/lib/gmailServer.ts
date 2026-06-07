@@ -166,11 +166,21 @@ export async function isConnected(): Promise<boolean> {
   return (await readTokens()) !== null;
 }
 
+/** True when the stored token includes the calendar.events scope. */
+export async function hasCalendarScope(): Promise<boolean> {
+  const stored = await readTokens();
+  if (!stored) return false;
+  const raw = stored.tokens?.scope;
+  const scope = typeof raw === "string" ? raw : "";
+  return scope.includes("https://www.googleapis.com/auth/calendar.events");
+}
+
 export function authUrl(): string {
   const client = oauthClient();
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
+    include_granted_scopes: true,
     scope: GMAIL_SCOPES,
   });
 }
@@ -227,7 +237,7 @@ async function ensureInterviewEvent(
     body: string;
     receivedAt: Date;
   }
-): Promise<void> {
+): Promise<"created" | "exists"> {
   const cal = google.calendar({ version: "v3", auth: authClient });
   // De-dup: any existing event tagged with this message id?
   const existing = await cal.events.list({
@@ -235,7 +245,7 @@ async function ensureInterviewEvent(
     privateExtendedProperty: [`gmailMsgId=${args.messageId}`],
     maxResults: 1,
   });
-  if ((existing.data.items ?? []).length > 0) return;
+  if ((existing.data.items ?? []).length > 0) return "exists";
 
   const haystack = `${args.subject}\n${args.snippet}\n${args.body}`;
   const parsed = parseInterviewSlot(haystack);
@@ -265,13 +275,29 @@ async function ensureInterviewEvent(
       },
     },
   });
+  return "created";
+}
+
+export interface InterviewSyncMetrics {
+  interviews: number;
+  eventsCreated: number;
+  eventsSkippedExisting: number;
+  eventsErrored: number;
+  lastCalendarError?: string;
+  calendarAuthorized: boolean;
+}
+
+export interface SyncResult {
+  applications: JobApplication[];
+  metrics: InterviewSyncMetrics;
 }
 
 /**
  * Fetches recent inbox messages, classifies the job-related ones, and returns
- * a de-duplicated list of applications (most recent status per company+role).
+ * a de-duplicated list of applications (most recent status per company+role)
+ * along with metrics about interview-email calendar event creation.
  */
-export async function fetchApplications(): Promise<JobApplication[]> {
+export async function fetchApplications(): Promise<SyncResult> {
   const stored = await readTokens();
   if (!stored) throw new Error("Gmail not connected");
 
@@ -304,6 +330,14 @@ export async function fetchApplications(): Promise<JobApplication[]> {
     .map((m) => m.id)
     .filter((id): id is string => Boolean(id));
   const found: JobApplication[] = [];
+  const calendarAuthorized = await hasCalendarScope();
+  const metrics: InterviewSyncMetrics = {
+    interviews: 0,
+    eventsCreated: 0,
+    eventsSkippedExisting: 0,
+    eventsErrored: 0,
+    calendarAuthorized,
+  };
 
   // Fetch message metadata in parallel batches to stay within the time limit.
   const BATCH = 20;
@@ -347,29 +381,40 @@ export async function fetchApplications(): Promise<JobApplication[]> {
       // If it's an interview email, fetch the full body and try to
       // auto-create a Google Calendar event (idempotent by gmail message id).
       if (status === "interview") {
-        try {
-          let body = "";
+        metrics.interviews += 1;
+        if (!calendarAuthorized) {
+          metrics.eventsErrored += 1;
+          metrics.lastCalendarError =
+            "Calendar permission not granted. Disconnect and reconnect Gmail and approve the calendar access on the consent screen.";
+        } else {
           try {
-            const full = await gmail.users.messages.get({
-              userId: "me",
-              id: data.id,
-              format: "full",
+            let body = "";
+            try {
+              const full = await gmail.users.messages.get({
+                userId: "me",
+                id: data.id,
+                format: "full",
+              });
+              body = extractPlainText(full.data.payload);
+            } catch {
+              /* fall back to snippet only */
+            }
+            const outcome = await ensureInterviewEvent(client, {
+              messageId: data.id,
+              company,
+              subject,
+              from,
+              snippet,
+              body,
+              receivedAt: new Date(dateMs),
             });
-            body = extractPlainText(full.data.payload);
-          } catch {
-            /* fall back to snippet only */
+            if (outcome === "created") metrics.eventsCreated += 1;
+            else metrics.eventsSkippedExisting += 1;
+          } catch (err) {
+            metrics.eventsErrored += 1;
+            metrics.lastCalendarError =
+              err instanceof Error ? err.message : "Calendar API error";
           }
-          await ensureInterviewEvent(client, {
-            messageId: data.id,
-            company,
-            subject,
-            from,
-            snippet,
-            body,
-            receivedAt: new Date(dateMs),
-          });
-        } catch {
-          /* don't fail the sync if calendar isn't authorized */
         }
       }
     }
@@ -398,5 +443,8 @@ export async function fetchApplications(): Promise<JobApplication[]> {
 
   await writeTokens({ ...stored, lastSynced: new Date().toISOString() });
 
-  return Array.from(byKey.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const applications = Array.from(byKey.values()).sort((a, b) =>
+    a.date < b.date ? 1 : -1
+  );
+  return { applications, metrics };
 }
