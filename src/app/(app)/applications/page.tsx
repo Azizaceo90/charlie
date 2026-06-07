@@ -293,6 +293,15 @@ function ApplicationsInner() {
           </button>
         </div>
       )}
+      {gmail.connected && gmail.calendarAuthorized === true && (
+        <div className="mb-5 flex items-center gap-3 rounded-lg border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm">
+          <CalendarClock className="h-5 w-5 shrink-0 text-accent-green" />
+          <span className="text-neutral-800">
+            Google Calendar connected — interview emails will be added
+            automatically (checked every 15 minutes).
+          </span>
+        </div>
+      )}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <RangeFilter value={range} onChange={setRange} />
