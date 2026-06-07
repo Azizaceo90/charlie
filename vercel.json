@@ -6,6 +6,10 @@
     {
       "path": "/api/jobs/refresh",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/gmail/sync",
+      "schedule": "0 */3 * * *"
     }
   ]
 }
