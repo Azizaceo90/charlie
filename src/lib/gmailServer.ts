@@ -39,8 +39,8 @@ export function parseInterviewSlot(
   const monthDate = text.match(
     /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
   );
-  // 2) "11/25" or "11/25/2025"
-  const slashDate = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  // 2) "11/25" or "11/25/2025" — no trailing \b so "6/5at 10am" still matches.
+  const slashDate = text.match(/(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
   // 3) ISO "2025-11-25"
   const isoDate = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   // Time formats: "2:00 PM", "2pm", "14:00"
@@ -316,6 +316,10 @@ export async function fetchApplications(): Promise<SyncResult> {
     'OR "we received your application" OR "your application to" OR "your application for"',
     'OR "application was sent" OR "application has been received"',
     'OR "interview invitation" OR "invite you to interview" OR "schedule your interview"',
+    'OR "your interview" OR "the interview" OR "interview will be" OR "interview is scheduled"',
+    'OR "zoom meeting" OR "zoom link" OR "join zoom" OR "google meet" OR "meet.google.com"',
+    'OR "calendar invite" OR "calendar invitation"',
+    'OR "look forward to meeting" OR "look forward to speaking" OR "looking forward to meeting" OR "looking forward to speaking"',
     'OR "phone screen" OR "online assessment" OR "coding challenge" OR "take-home"',
     'OR "pleased to offer" OR "offer of employment" OR "offer letter"',
     'OR "regret to inform" OR "move forward with your application")',

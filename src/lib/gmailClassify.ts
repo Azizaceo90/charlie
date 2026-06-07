@@ -52,6 +52,11 @@ const SIGNALS: Signal[] = [
       /invite you to (?:a |an )?(?:interview|call|conversation)/i,
       /(?:like to|love to) (?:speak|chat|connect|meet) (?:with )?you/i,
       /next (?:round|step)/i,
+      /zoom (?:meeting|link)/i,
+      /join zoom/i,
+      /google meet|meet\.google\.com/i,
+      /calendar invit(?:e|ation)/i,
+      /look(?:ing)? forward to (?:meeting|speaking)/i,
     ],
   },
   {
