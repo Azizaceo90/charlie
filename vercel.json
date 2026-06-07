@@ -9,7 +9,7 @@
     },
     {
       "path": "/api/gmail/sync",
-      "schedule": "0 * * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }
