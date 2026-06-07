@@ -5,7 +5,15 @@ import { hasCalendarScope, oauthClient, readTokens } from "@/lib/gmailServer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export async function GET() {
+  return runTest();
+}
+
 export async function POST() {
+  return runTest();
+}
+
+async function runTest() {
   const stored = await readTokens();
   if (!stored) {
     return NextResponse.json(
