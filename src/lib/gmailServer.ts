@@ -35,21 +35,69 @@ const MONTHS: Record<string, number> = {
 export function parseInterviewSlot(
   text: string
 ): { start: Date; end: Date } | null {
-  const dateMatch = text.match(
+  // 1) "November 25" / "Nov 25, 2025"
+  const monthDate = text.match(
     /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
   );
-  const timeMatch = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
-  if (!dateMatch || !timeMatch) return null;
-  const month = MONTHS[dateMatch[1].toLowerCase()];
-  if (month === undefined) return null;
-  const day = parseInt(dateMatch[2], 10);
-  const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : new Date().getFullYear();
-  let hour = parseInt(timeMatch[1], 10);
-  const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-  if (/pm/i.test(timeMatch[3]) && hour < 12) hour += 12;
-  if (/am/i.test(timeMatch[3]) && hour === 12) hour = 0;
+  // 2) "11/25" or "11/25/2025"
+  const slashDate = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  // 3) ISO "2025-11-25"
+  const isoDate = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  // Time formats: "2:00 PM", "2pm", "14:00"
+  const timeAmPm = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  const time24 = text.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+
+  let year: number | null = null;
+  let month: number | null = null;
+  let day: number | null = null;
+
+  if (monthDate) {
+    month = MONTHS[monthDate[1].toLowerCase()];
+    day = parseInt(monthDate[2], 10);
+    year = monthDate[3] ? parseInt(monthDate[3], 10) : new Date().getFullYear();
+  } else if (slashDate) {
+    month = parseInt(slashDate[1], 10) - 1;
+    day = parseInt(slashDate[2], 10);
+    year = slashDate[3]
+      ? parseInt(slashDate[3].length === 2 ? `20${slashDate[3]}` : slashDate[3], 10)
+      : new Date().getFullYear();
+  } else if (isoDate) {
+    year = parseInt(isoDate[1], 10);
+    month = parseInt(isoDate[2], 10) - 1;
+    day = parseInt(isoDate[3], 10);
+  }
+
+  if (year === null || month === null || day === null) return null;
+  if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+
+  let hour = 9;
+  let minute = 0;
+  if (timeAmPm) {
+    hour = parseInt(timeAmPm[1], 10);
+    minute = timeAmPm[2] ? parseInt(timeAmPm[2], 10) : 0;
+    if (/pm/i.test(timeAmPm[3]) && hour < 12) hour += 12;
+    if (/am/i.test(timeAmPm[3]) && hour === 12) hour = 0;
+  } else if (time24) {
+    hour = parseInt(time24[1], 10);
+    minute = parseInt(time24[2], 10);
+  } else {
+    return null; // need a time, not just a date
+  }
+
   const start = new Date(year, month, day, hour, minute);
   if (Number.isNaN(start.getTime())) return null;
+  return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
+}
+
+/** Tentative reminder slot when no date/time could be parsed. */
+function fallbackSlot(receivedAt: Date): { start: Date; end: Date } {
+  const start = new Date(receivedAt);
+  start.setDate(start.getDate() + 1);
+  // Skip to Monday if it lands on Saturday/Sunday.
+  while (start.getDay() === 0 || start.getDay() === 6) {
+    start.setDate(start.getDate() + 1);
+  }
+  start.setHours(10, 0, 0, 0);
   return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
 }
 
@@ -135,9 +183,36 @@ function header(
   return h?.value ?? "";
 }
 
+/** Walk MIME parts and pull plain-text bodies (decoded from base64url). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPlainText(payload: any): string {
+  if (!payload) return "";
+  const parts: string[] = [];
+  const walk = (p: { mimeType?: string | null; body?: { data?: string | null } | null; parts?: unknown[] | null }) => {
+    if (!p) return;
+    const mt = p.mimeType ?? "";
+    const data = p.body?.data;
+    if (data && (mt === "text/plain" || mt === "text/html")) {
+      try {
+        const buf = Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+        let txt = buf.toString("utf8");
+        if (mt === "text/html") txt = txt.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+        parts.push(txt);
+      } catch {
+        /* skip undecodable part */
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p.parts ?? []).forEach((child: any) => walk(child));
+  };
+  walk(payload);
+  return parts.join("\n");
+}
+
 /**
  * Creates a Google Calendar event for a detected interview email. Idempotent:
  * skips if an event already exists with the same Gmail message id tag.
+ * Falls back to a tentative next-business-day slot when no date/time parses.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function ensureInterviewEvent(
@@ -149,6 +224,8 @@ async function ensureInterviewEvent(
     subject: string;
     from: string;
     snippet: string;
+    body: string;
+    receivedAt: Date;
   }
 ): Promise<void> {
   const cal = google.calendar({ version: "v3", auth: authClient });
@@ -160,18 +237,31 @@ async function ensureInterviewEvent(
   });
   if ((existing.data.items ?? []).length > 0) return;
 
-  const slot = parseInterviewSlot(`${args.subject}\n${args.snippet}`);
-  if (!slot) return; // no parseable date/time → don't guess
+  const haystack = `${args.subject}\n${args.snippet}\n${args.body}`;
+  const parsed = parseInterviewSlot(haystack);
+  const slot = parsed ?? fallbackSlot(args.receivedAt);
+  const tentative = !parsed;
 
   await cal.events.insert({
     calendarId: "primary",
     requestBody: {
-      summary: `Interview: ${args.company}`,
-      description: `${args.subject}\n\nFrom: ${args.from}\n\nAdded automatically by Career Ops.`,
+      summary: tentative
+        ? `Interview: ${args.company} (time TBD)`
+        : `Interview: ${args.company}`,
+      description:
+        `${args.subject}\n\nFrom: ${args.from}\n\n` +
+        (tentative
+          ? "Time not detected in email — tentative slot. Please confirm with the recruiter and update this event.\n\n"
+          : "") +
+        "Added automatically by Career Ops.",
       start: { dateTime: slot.start.toISOString() },
       end: { dateTime: slot.end.toISOString() },
       extendedProperties: {
-        private: { gmailMsgId: args.messageId, source: "career-ops" },
+        private: {
+          gmailMsgId: args.messageId,
+          source: "career-ops",
+          tentative: tentative ? "true" : "false",
+        },
       },
     },
   });
@@ -254,16 +344,29 @@ export async function fetchApplications(): Promise<JobApplication[]> {
         emailFrom: from,
       });
 
-      // If it's an interview email, try to auto-create a Google Calendar
-      // event at the parsed date/time (idempotent by gmail message id).
+      // If it's an interview email, fetch the full body and try to
+      // auto-create a Google Calendar event (idempotent by gmail message id).
       if (status === "interview") {
         try {
+          let body = "";
+          try {
+            const full = await gmail.users.messages.get({
+              userId: "me",
+              id: data.id,
+              format: "full",
+            });
+            body = extractPlainText(full.data.payload);
+          } catch {
+            /* fall back to snippet only */
+          }
           await ensureInterviewEvent(client, {
             messageId: data.id,
             company,
             subject,
             from,
             snippet,
+            body,
+            receivedAt: new Date(dateMs),
           });
         } catch {
           /* don't fail the sync if calendar isn't authorized */
