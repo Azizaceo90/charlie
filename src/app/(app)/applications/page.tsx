@@ -73,12 +73,71 @@ function ApplicationsInner() {
     return () => clearInterval(t);
   }, []);
 
-  // Load Gmail status once.
+  // Load Gmail status once, then keep applications fresh in the background
+  // (silent sync when the tab is opened, refocused, or last sync is stale).
   useEffect(() => {
-    fetch("/api/gmail/status")
-      .then((r) => r.json())
-      .then((s: GmailStatus) => setGmail(s))
-      .catch(() => {});
+    let cancelled = false;
+
+    const STALE_MS = 15 * 60 * 1000; // 15 minutes
+
+    async function backgroundSync() {
+      try {
+        const res = await fetch("/api/gmail/sync");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setApplicationsAll(data.applications ?? []);
+        const iv = data.interviews as
+          | {
+              interviews: number;
+              eventsCreated: number;
+              calendarAuthorized: boolean;
+            }
+          | undefined;
+        setGmail((g) => ({
+          ...g,
+          connected: true,
+          lastSynced: data.syncedAt,
+          calendarAuthorized: iv?.calendarAuthorized ?? g.calendarAuthorized,
+        }));
+        if (iv && iv.eventsCreated > 0) {
+          setToast(
+            `Added ${iv.eventsCreated} interview${iv.eventsCreated === 1 ? "" : "s"} to your Google Calendar.`
+          );
+        }
+      } catch {
+        /* silent */
+      }
+    }
+
+    async function init() {
+      try {
+        const r = await fetch("/api/gmail/status");
+        const s: GmailStatus = await r.json();
+        if (cancelled) return;
+        setGmail(s);
+        if (!s.connected) return;
+        const lastMs = s.lastSynced ? Date.parse(s.lastSynced) : 0;
+        if (Date.now() - lastMs > STALE_MS) backgroundSync();
+      } catch {
+        /* ignore */
+      }
+    }
+    init();
+
+    // Re-sync whenever the user comes back to the tab.
+    function onFocus() {
+      backgroundSync();
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") backgroundSync();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

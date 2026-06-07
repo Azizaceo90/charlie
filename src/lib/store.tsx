@@ -147,7 +147,7 @@ interface AppData {
   updateListing: (id: string, patch: Partial<JobListing>) => Promise<void>;
 
   gmail: GmailStatus;
-  setGmail: (g: GmailStatus) => void;
+  setGmail: React.Dispatch<React.SetStateAction<GmailStatus>>;
 }
 
 const Ctx = createContext<AppData | null>(null);
