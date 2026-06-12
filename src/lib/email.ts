@@ -114,6 +114,41 @@ export function contractEmailHtml(opts: {
   </div>`;
 }
 
+export function contractReminderEmailHtml(opts: {
+  name: string;
+  contractTitle: string;
+  inviter: string;
+  signUrl: string;
+  issuedAt?: string;
+}): string {
+  const issued = opts.issuedAt
+    ? new Date(opts.issuedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:480px;margin:0 auto;color:#323338">
+    <div style="background:#0073ea;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;font-size:18px;font-weight:700">
+      Career Ops
+    </div>
+    <div style="border:1px solid #e0e3ee;border-top:0;border-radius:0 0 12px 12px;padding:24px">
+      <p>Hi ${opts.name},</p>
+      <p>This is a friendly reminder from ${opts.inviter} that the following contract is still waiting for your signature:</p>
+      <div style="background:#fff8ec;border:1px solid #f5c451;border-radius:8px;padding:14px 16px;margin:16px 0;font-size:15px;font-weight:600">
+        ${opts.contractTitle}${
+          issued
+            ? `<div style="font-weight:400;font-size:12px;color:#676879;margin-top:4px">Issued ${issued}</div>`
+            : ""
+        }
+      </div>
+      <p>It only takes a minute — the document is attached. To sign it electronically, open Contracts in Career Ops:</p>
+      <a href="${opts.signUrl}" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Review &amp; sign</a>
+    </div>
+  </div>`;
+}
+
 export function emailConfigured(): boolean {
   return Boolean(
     (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||

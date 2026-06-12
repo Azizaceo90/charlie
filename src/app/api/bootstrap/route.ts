@@ -79,6 +79,7 @@ export async function GET() {
       paymentMethod: me.paymentMethod,
       paymentAccount: me.paymentAccount,
       onboardingDone: me.onboardingDone,
+      signature: me.signature,
     },
   });
 }

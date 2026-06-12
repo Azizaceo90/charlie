@@ -2,9 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
+  Bell,
   CheckCircle2,
   Clock,
   FileSignature,
+  Loader2,
   PenLine,
   Plus,
   Trash2,
@@ -26,6 +29,7 @@ export default function ContractsPage() {
     addContract,
     removeContract,
     reopenContract,
+    remindContract,
     signContract,
   } = useData();
   const isAdmin = currentUser?.role === "admin";
@@ -196,7 +200,7 @@ export default function ContractsPage() {
                     {dateOnly(selected.issuedAt)}
                   </div>
                 </div>
-                {selected.status === "signed" && (
+                {selected.status === "signed" ? (
                   <div className="flex items-center gap-2">
                     <span className="chip bg-accent-green/15 text-accent-green">
                       <CheckCircle2 className="h-3 w-3" /> Signed
@@ -223,6 +227,14 @@ export default function ContractsPage() {
                       </button>
                     )}
                   </div>
+                ) : (
+                  isAdmin && (
+                    <RemindControl
+                      key={selected.id}
+                      contract={selected}
+                      onRemind={() => remindContract(selected.id)}
+                    />
+                  )
                 )}
               </div>
 
@@ -293,6 +305,82 @@ export default function ContractsPage() {
   );
 }
 
+function RemindControl({
+  contract,
+  onRemind,
+}: {
+  contract: Contract;
+  onRemind: () => Promise<{ emailed: boolean; error?: string }>;
+}) {
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<
+    { ok: boolean; message: string } | null
+  >(null);
+
+  async function send() {
+    setSending(true);
+    setResult(null);
+    try {
+      const r = await onRemind();
+      setResult(
+        r.emailed
+          ? { ok: true, message: `Reminder emailed to ${contract.assignedToName}.` }
+          : {
+              ok: false,
+              message:
+                r.error ??
+                "Saved an in-app reminder, but email isn't configured.",
+            }
+      );
+    } catch (e) {
+      setResult({
+        ok: false,
+        message: e instanceof Error ? e.message : "Could not send reminder.",
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={send}
+        disabled={sending}
+        className="btn-ghost text-xs"
+        title={`Email ${contract.assignedToName} a reminder to sign`}
+      >
+        {sending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Bell className="h-3.5 w-3.5" />
+        )}
+        Send reminder
+      </button>
+      {result ? (
+        <span
+          className={`flex items-center gap-1 text-[11px] ${
+            result.ok ? "text-accent-green" : "text-accent-amber"
+          }`}
+        >
+          {result.ok ? (
+            <CheckCircle2 className="h-3 w-3" />
+          ) : (
+            <AlertCircle className="h-3 w-3" />
+          )}
+          {result.message}
+        </span>
+      ) : (
+        contract.remindedAt && (
+          <span className="text-[11px] text-neutral-400">
+            Last reminded {ago(contract.remindedAt)}
+          </span>
+        )
+      )}
+    </div>
+  );
+}
+
 function SignPanel({
   onSign,
   contract,
@@ -308,6 +396,8 @@ function SignPanel({
   contract: Contract;
   defaultName: string;
 }) {
+  const { currentUser, saveSignature } = useData();
+  const savedSignature = currentUser?.signature ?? null;
   const placedFields = parseContractFields(contract.fields);
   const hasFields = placedFields.length > 0;
 
@@ -360,6 +450,11 @@ function SignPanel({
             fields={placedFields}
             values={fieldValues}
             onChange={setFieldValues}
+            savedSignature={savedSignature}
+            onSaveSignature={async (d) => {
+              await saveSignature(d);
+            }}
+            defaultName={defaultName}
           />
         </div>
       ) : (
@@ -395,7 +490,14 @@ function SignPanel({
           </div>
 
           <div className="mb-1 text-xs font-medium text-neutral-500">Signature</div>
-          <SignaturePad onChange={setSignature} />
+          <SignaturePad
+            onChange={setSignature}
+            savedSignature={savedSignature}
+            onSaveSignature={async (d) => {
+              await saveSignature(d);
+            }}
+            defaultName={defaultName}
+          />
         </>
       )}
 

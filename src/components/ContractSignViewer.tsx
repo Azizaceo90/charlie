@@ -10,11 +10,17 @@ export default function ContractSignViewer({
   fields,
   values,
   onChange,
+  savedSignature,
+  onSaveSignature,
+  defaultName,
 }: {
   pdfDataUrl: string;
   fields: ContractField[];
   values: Record<string, string>;
   onChange: (values: Record<string, string>) => void;
+  savedSignature?: string | null;
+  onSaveSignature?: (dataUrl: string) => void | Promise<void>;
+  defaultName?: string;
 }) {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const [pages, setPages] = useState<PageRenderInfo[]>([]);
@@ -70,9 +76,22 @@ export default function ContractSignViewer({
               };
               if (f.type === "signature") {
                 return (
-                  <div key={f.id} className="absolute" style={style}>
-                    <div className="h-full w-full rounded border border-brand/40 bg-white">
-                      <SignaturePad onChange={(d) => set(f.id, d ?? "")} />
+                  <div
+                    key={f.id}
+                    className="absolute z-10"
+                    style={{
+                      left: f.xRatio * p.width,
+                      top: f.yRatio * p.height,
+                      width: Math.max(f.wRatio * p.width, 320),
+                    }}
+                  >
+                    <div className="rounded-lg border border-brand/40 bg-white p-2 shadow-lg">
+                      <SignaturePad
+                        onChange={(d) => set(f.id, d ?? "")}
+                        savedSignature={savedSignature}
+                        onSaveSignature={onSaveSignature}
+                        defaultName={defaultName}
+                      />
                     </div>
                   </div>
                 );

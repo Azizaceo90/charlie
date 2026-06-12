@@ -34,6 +34,9 @@ model User {
   paymentMethod  String?
   paymentAccount String?
   onboardingDone Boolean   @default(false)
+  // Reusable "built-in" signature (base64 PNG data URL) the user can drop
+  // onto any contract signature field instead of re-drawing it each time.
+  signature      String?
 
   timeEntries   TimeEntry[]
   contracts     Contract[]     @relation("AssignedContracts")
@@ -118,6 +121,7 @@ model Contract {
   fields           String? // JSON array of fillable field placements
   issuedAt         DateTime  @default(now())
   signedAt         DateTime?
+  remindedAt       DateTime? // last time a "please sign" reminder was emailed
   signatureDataUrl String?
   signerName       String?
 }

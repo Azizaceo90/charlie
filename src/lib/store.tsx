@@ -92,6 +92,8 @@ interface AppData {
   impersonateUser: (userId: string) => Promise<string | null>;
   stopImpersonating: () => Promise<void>;
   updateProfile: (fields: ProfileFields) => Promise<string | null>;
+  /** Save (data URL) or clear (null) the reusable built-in signature. */
+  saveSignature: (signature: string | null) => Promise<string | null>;
 
   personalDocs: PersonalDoc[];
   addPersonalDoc: (
@@ -127,6 +129,9 @@ interface AppData {
   addContract: (input: Omit<Contract, "id">) => Promise<Contract>;
   removeContract: (id: string) => Promise<void>;
   reopenContract: (id: string) => Promise<void>;
+  remindContract: (
+    id: string
+  ) => Promise<{ emailed: boolean; error?: string }>;
   signContract: (
     id: string,
     body: {
@@ -291,6 +296,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return data.error ?? "Could not save profile.";
+      setCurrentUser((prev) => (prev ? { ...prev, ...data.user } : prev));
+      return null;
+    },
+    []
+  );
+
+  const saveSignature = useCallback(
+    async (signature: string | null): Promise<string | null> => {
+      const res = await fetch("/api/auth/signature", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signature }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error ?? "Could not save signature.";
       setCurrentUser((prev) => (prev ? { ...prev, ...data.user } : prev));
       return null;
     },
@@ -502,6 +522,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updated = (await res.json()) as Contract;
     setContracts((prev) => prev.map((c) => (c.id === id ? updated : c)));
   }, []);
+  const remindContract = useCallback(async (id: string) => {
+    const res = await fetch(`/api/contracts/${id}/remind`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? "Reminder failed");
+    if (data.contract) {
+      setContracts((prev) =>
+        prev.map((c) => (c.id === id ? (data.contract as Contract) : c))
+      );
+    }
+    return { emailed: Boolean(data.emailed), error: data.error as string | undefined };
+  }, []);
   const signContract = useCallback(
     async (
       id: string,
@@ -566,6 +597,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     impersonateUser,
     stopImpersonating,
     updateProfile,
+    saveSignature,
     personalDocs,
     addPersonalDoc,
     removePersonalDoc,
@@ -590,6 +622,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     addContract,
     removeContract,
     reopenContract,
+    remindContract,
     signContract,
     applicants,
     addApplicant,
