@@ -14,6 +14,7 @@ import { useData } from "@/lib/store";
 import { PersonalDoc } from "@/lib/types";
 import { Card, PageHeader } from "@/components/ui";
 import { ago } from "@/lib/format";
+import SignaturePad from "@/components/SignaturePad";
 
 const DOC_CATEGORIES = ["ID"];
 
@@ -43,8 +44,90 @@ export default function AccountPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
         <ProfileSection />
         <DocsSection />
+        <SignatureSection />
       </div>
     </div>
+  );
+}
+
+function SignatureSection() {
+  const { currentUser, saveSignature } = useData();
+  const saved = currentUser?.signature ?? null;
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  async function persist(dataUrl: string | null) {
+    setError(null);
+    const err = await saveSignature(dataUrl);
+    if (err) setError(err);
+    else setSavedAt(Date.now());
+  }
+
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 text-sm font-semibold text-neutral-900">
+        My signature
+      </h2>
+      <p className="mb-3 text-xs text-neutral-500">
+        Save a reusable signature here so you can add it to any contract with one
+        click instead of re-drawing it every time.
+      </p>
+
+      {saved && (
+        <div className="mb-3 rounded-lg border border-line bg-bg-soft p-3">
+          <div className="mb-2 text-xs font-medium text-neutral-500">
+            Saved signature
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={saved}
+              alt="Saved signature"
+              className="h-16 rounded bg-white px-2"
+            />
+            <button
+              onClick={async () => {
+                setRemoving(true);
+                await persist(null);
+                setRemoving(false);
+              }}
+              disabled={removing}
+              className="btn-subtle text-xs"
+            >
+              {removing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-line bg-bg-soft p-3">
+        <div className="mb-2 text-xs font-medium text-neutral-500">
+          {saved ? "Replace signature" : "Create your signature"}
+        </div>
+        <SignaturePad
+          onChange={() => {}}
+          onSaveSignature={(d) => persist(d)}
+          defaultName={currentUser?.fullLegalName ?? currentUser?.name ?? ""}
+        />
+      </div>
+
+      {error && (
+        <div className="mt-3 rounded-lg border border-accent-red/40 bg-accent-red/10 px-3 py-2 text-xs text-accent-red">
+          {error}
+        </div>
+      )}
+      {savedAt && Date.now() - savedAt < 3500 && (
+        <span className="mt-3 flex items-center gap-1 text-xs text-accent-green">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Signature saved
+        </span>
+      )}
+    </Card>
   );
 }
 

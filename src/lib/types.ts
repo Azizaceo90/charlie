@@ -16,6 +16,8 @@ export interface User {
   paymentMethod?: string | null;
   paymentAccount?: string | null;
   onboardingDone?: boolean;
+  /** Reusable saved signature (base64 PNG data URL). */
+  signature?: string | null;
 }
 
 export interface PersonalDoc {
@@ -126,6 +128,8 @@ export interface Contract {
   fields?: string | null;
   issuedAt: string;
   signedAt?: string;
+  /** ISO datetime of the last reminder email sent to the assignee */
+  remindedAt?: string | null;
   /** base64 data URL of the drawn signature */
   signatureDataUrl?: string;
   signerName?: string;
