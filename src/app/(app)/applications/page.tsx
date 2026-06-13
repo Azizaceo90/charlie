@@ -172,7 +172,9 @@ function ApplicationsInner() {
           | {
               interviews: number;
               eventsCreated: number;
+              eventsUpdated?: number;
               eventsSkippedExisting: number;
+              eventsSkippedNoReply?: number;
               eventsErrored: number;
               lastCalendarError?: string;
               calendarAuthorized: boolean;
@@ -188,10 +190,18 @@ function ApplicationsInner() {
         if (iv && iv.interviews > 0) {
           if (!iv.calendarAuthorized) {
             msg += ` ${iv.interviews} interview${iv.interviews === 1 ? "" : "s"} found but calendar permission missing — reconnect Gmail and approve calendar access.`;
-          } else if (iv.eventsCreated > 0) {
-            msg += ` Added ${iv.eventsCreated} interview${iv.eventsCreated === 1 ? "" : "s"} to your Google Calendar.`;
-          } else if (iv.eventsErrored > 0 && iv.lastCalendarError) {
-            msg += ` Calendar issue: ${iv.lastCalendarError}`;
+          } else {
+            const added = iv.eventsCreated ?? 0;
+            const updated = iv.eventsUpdated ?? 0;
+            const waiting = iv.eventsSkippedNoReply ?? 0;
+            const bits: string[] = [];
+            if (added > 0) bits.push(`added ${added}`);
+            if (updated > 0) bits.push(`updated ${updated}`);
+            if (bits.length) msg += ` Calendar: ${bits.join(", ")} interview event${added + updated === 1 ? "" : "s"}.`;
+            if (waiting > 0)
+              msg += ` ${waiting} interview thread${waiting === 1 ? "" : "s"} waiting on your reply before scheduling.`;
+            if (!bits.length && !waiting && iv.eventsErrored > 0 && iv.lastCalendarError)
+              msg += ` Calendar issue: ${iv.lastCalendarError}`;
           }
         }
         setToast(msg);
