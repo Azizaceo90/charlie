@@ -237,6 +237,12 @@ function header(
   return h?.value ?? "";
 }
 
+/** Pull the bare email address out of a "Name <a@b.com>" From/To header. */
+function parseEmailAddress(value: string): string | null {
+  const m = value.match(/<([^>]+)>/) || value.match(/([^\s,<]+@[^\s,>]+)/);
+  return m ? m[1].toLowerCase().trim() : null;
+}
+
 /** Walk MIME parts and pull plain-text bodies (decoded from base64url). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractPlainText(payload: any): string {
@@ -313,8 +319,27 @@ async function upsertInterviewEvent(
     messages = [];
   }
 
-  // Honor "when I respond": don't schedule until the user has replied.
-  if (!messages.some((m) => m.fromUser)) return "skipped";
+  // Honor "when I respond": don't schedule until the user has engaged.
+  // Forwarding can split a thread (the proposal lands in its own thread, the
+  // reply in another), so besides a SENT message *in this thread* we also check
+  // whether the user has ever sent mail to the recruiter's address.
+  let replied = messages.some((m) => m.fromUser);
+  if (!replied) {
+    const recruiter = parseEmailAddress(args.from);
+    if (recruiter) {
+      try {
+        const sent = await gmail.users.messages.list({
+          userId: "me",
+          q: `in:sent to:${recruiter}`,
+          maxResults: 1,
+        });
+        replied = (sent.data.messages ?? []).length > 0;
+      } catch {
+        /* if the lookup fails, fall back to the in-thread signal only */
+      }
+    }
+  }
+  if (!replied) return "skipped";
 
   // Newest message with an explicit time wins (the agreed slot); otherwise the
   // newest message that yields a date (proposed, all-day).
