@@ -31,10 +31,17 @@ const MONTHS: Record<string, number> = {
   dec: 11, december: 11,
 };
 
-/** Best-effort date+time extraction from an interview email. */
+/** Best-effort date+time extraction from an interview email.
+ *
+ * - date **and** time → a 30-minute timed slot (`allDay: false`).
+ * - date only (e.g. "availability on 6/11 or 6/12") → an all-day event on the
+ *   first proposed date (`allDay: true`), so it lands on the right day even
+ *   though the exact time still needs confirming.
+ * - no date → null (caller uses a tentative fallback slot).
+ */
 export function parseInterviewSlot(
   text: string
-): { start: Date; end: Date } | null {
+): { start: Date; end: Date; allDay: boolean } | null {
   // 1) "November 25" / "Nov 25, 2025"
   const monthDate = text.match(
     /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
@@ -70,6 +77,19 @@ export function parseInterviewSlot(
   if (year === null || month === null || day === null) return null;
   if (month < 0 || month > 11 || day < 1 || day > 31) return null;
 
+  // Dates/times are built with Date.UTC so the wall-clock numbers survive
+  // regardless of the server timezone; the calendar event then carries an
+  // explicit `timeZone`, so "10:30am" shows as 10:30am in CALENDAR_TZ — not
+  // shifted by the server's UTC offset.
+
+  // A date with no time → all-day event on that date (lands on the right day,
+  // exact time to be confirmed with the sender).
+  if (!timeAmPm && !time24) {
+    const dayStart = new Date(Date.UTC(year, month, day));
+    if (Number.isNaN(dayStart.getTime())) return null;
+    return { start: dayStart, end: dayStart, allDay: true };
+  }
+
   let hour = 9;
   let minute = 0;
   if (timeAmPm) {
@@ -80,24 +100,48 @@ export function parseInterviewSlot(
   } else if (time24) {
     hour = parseInt(time24[1], 10);
     minute = parseInt(time24[2], 10);
-  } else {
-    return null; // need a time, not just a date
   }
 
-  const start = new Date(year, month, day, hour, minute);
+  const start = new Date(Date.UTC(year, month, day, hour, minute));
   if (Number.isNaN(start.getTime())) return null;
-  return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
+  return { start, end: new Date(start.getTime() + 30 * 60 * 1000), allDay: false };
 }
 
-/** Tentative reminder slot when no date/time could be parsed. */
+/** Timezone interview events are stamped in (override with CALENDAR_TZ). */
+const CALENDAR_TZ = process.env.CALENDAR_TZ || "America/New_York";
+
+/** Format the wall-clock (UTC-encoded) Date as YYYY-MM-DD for all-day events. */
+function ymd(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Format the wall-clock (UTC-encoded) Date as a local datetime string with no
+ * offset (e.g. "2026-06-16T10:30:00"), to pair with an explicit timeZone. */
+function localDateTime(d: Date): string {
+  return `${ymd(d)}T${String(d.getUTCHours()).padStart(2, "0")}:${String(
+    d.getUTCMinutes()
+  ).padStart(2, "0")}:00`;
+}
+
+/** Tentative reminder slot (next business day, 10:00 wall-clock) when no
+ * date/time could be parsed. Encoded in UTC fields to match the formatters. */
 function fallbackSlot(receivedAt: Date): { start: Date; end: Date } {
-  const start = new Date(receivedAt);
-  start.setDate(start.getDate() + 1);
+  const start = new Date(
+    Date.UTC(
+      receivedAt.getUTCFullYear(),
+      receivedAt.getUTCMonth(),
+      receivedAt.getUTCDate() + 1,
+      10,
+      0
+    )
+  );
   // Skip to Monday if it lands on Saturday/Sunday.
-  while (start.getDay() === 0 || start.getDay() === 6) {
-    start.setDate(start.getDate() + 1);
+  while (start.getUTCDay() === 0 || start.getUTCDay() === 6) {
+    start.setUTCDate(start.getUTCDate() + 1);
   }
-  start.setHours(10, 0, 0, 0);
   return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
 }
 
@@ -220,68 +264,141 @@ function extractPlainText(payload: any): string {
 }
 
 /**
- * Creates a Google Calendar event for a detected interview email. Idempotent:
- * skips if an event already exists with the same Gmail message id tag.
- * Falls back to a tentative next-business-day slot when no date/time parses.
+ * Reads an entire interview thread — including the user's own replies — and
+ * upserts a single Google Calendar event for it, keyed by the Gmail thread id.
+ *
+ * - Only schedules once the user has replied in the thread ("when I respond").
+ * - Uses the most recent message that contains an explicit time as the agreed
+ *   slot; falls back to the most recent proposed date (all-day), then to a
+ *   tentative next-business-day slot.
+ * - As the thread evolves (proposal → agreed time), the same event is patched
+ *   in place rather than duplicated.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function ensureInterviewEvent(
+async function upsertInterviewEvent(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authClient: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  gmail: any,
   args: {
-    messageId: string;
+    threadId: string;
     company: string;
     subject: string;
     from: string;
-    snippet: string;
-    body: string;
     receivedAt: Date;
   }
-): Promise<"created" | "exists"> {
-  const cal = google.calendar({ version: "v3", auth: authClient });
-  // De-dup: any existing event tagged with this message id?
-  const existing = await cal.events.list({
-    calendarId: "primary",
-    privateExtendedProperty: [`gmailMsgId=${args.messageId}`],
-    maxResults: 1,
-  });
-  if ((existing.data.items ?? []).length > 0) return "exists";
+): Promise<"created" | "updated" | "exists" | "skipped"> {
+  // Pull the full thread (all messages, including the user's sent replies).
+  let messages: { text: string; date: number; fromUser: boolean }[] = [];
+  try {
+    const thread = await gmail.users.threads.get({
+      userId: "me",
+      id: args.threadId,
+      format: "full",
+    });
+    messages = (thread.data.messages ?? []).map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (m: any) => {
+        const headers = m.payload?.headers ?? [];
+        const subject = header(headers, "Subject");
+        const body = extractPlainText(m.payload);
+        const labels: string[] = m.labelIds ?? [];
+        return {
+          text: `${subject}\n${m.snippet ?? ""}\n${body}`,
+          date: Number(m.internalDate ?? 0),
+          fromUser: labels.includes("SENT"),
+        };
+      }
+    );
+  } catch {
+    messages = [];
+  }
 
-  const haystack = `${args.subject}\n${args.snippet}\n${args.body}`;
-  const parsed = parseInterviewSlot(haystack);
+  // Honor "when I respond": don't schedule until the user has replied.
+  if (!messages.some((m) => m.fromUser)) return "skipped";
+
+  // Newest message with an explicit time wins (the agreed slot); otherwise the
+  // newest message that yields a date (proposed, all-day).
+  const sorted = [...messages].sort((a, b) => b.date - a.date);
+  let parsed: ReturnType<typeof parseInterviewSlot> = null;
+  for (const m of sorted) {
+    const s = parseInterviewSlot(m.text);
+    if (s && !s.allDay) {
+      parsed = s;
+      break;
+    }
+    if (s && !parsed) parsed = s;
+  }
+
   const slot = parsed ?? fallbackSlot(args.receivedAt);
-  const tentative = !parsed;
+  const allDay = parsed?.allDay ?? false;
+  const timeKnown = parsed != null && !parsed.allDay;
 
-  await cal.events.insert({
-    calendarId: "primary",
-    requestBody: {
-      summary: tentative
-        ? `Interview: ${args.company} (time TBD)`
-        : `Interview: ${args.company}`,
-      description:
-        `${args.subject}\n\nFrom: ${args.from}\n\n` +
-        (tentative
-          ? "Time not detected in email — tentative slot. Please confirm with the recruiter and update this event.\n\n"
-          : "") +
-        "Added automatically by Career Ops.",
-      start: { dateTime: slot.start.toISOString() },
-      end: { dateTime: slot.end.toISOString() },
-      extendedProperties: {
-        private: {
-          gmailMsgId: args.messageId,
-          source: "career-ops",
-          tentative: tentative ? "true" : "false",
-        },
+  const summary = timeKnown
+    ? `Interview: ${args.company}`
+    : allDay
+      ? `Interview: ${args.company} (confirm time)`
+      : `Interview: ${args.company} (time TBD)`;
+
+  const start = allDay
+    ? { date: ymd(slot.start) }
+    : { dateTime: localDateTime(slot.start), timeZone: CALENDAR_TZ };
+  const end = allDay
+    ? { date: ymd(new Date(slot.start.getTime() + 24 * 60 * 60 * 1000)) }
+    : { dateTime: localDateTime(slot.end), timeZone: CALENDAR_TZ };
+
+  // Stable key so re-syncs only patch when the slot actually changed.
+  const slotKey = allDay ? `d:${ymd(slot.start)}` : `t:${localDateTime(slot.start)}`;
+
+  const description =
+    `${args.subject}\n\nFrom: ${args.from}\n\n` +
+    (timeKnown
+      ? "Scheduled from your email thread. Verify against the latest reply.\n\n"
+      : allDay
+        ? "Proposed date detected — confirm the exact time with the sender; this event updates automatically when a time is agreed.\n\n"
+        : "No date/time detected yet — tentative slot. Update once you agree on a time.\n\n") +
+    "Added automatically by Career Ops.";
+
+  const requestBody = {
+    summary,
+    description,
+    start,
+    end,
+    extendedProperties: {
+      private: {
+        gmailThreadId: args.threadId,
+        source: "career-ops",
+        tentative: timeKnown ? "false" : "true",
+        slotKey,
       },
     },
+  };
+
+  const cal = google.calendar({ version: "v3", auth: authClient });
+  const existing = await cal.events.list({
+    calendarId: "primary",
+    privateExtendedProperty: [`gmailThreadId=${args.threadId}`],
+    maxResults: 1,
   });
+  const ev = (existing.data.items ?? [])[0];
+  if (ev?.id) {
+    if (ev.extendedProperties?.private?.slotKey === slotKey) return "exists";
+    await cal.events.patch({
+      calendarId: "primary",
+      eventId: ev.id,
+      requestBody,
+    });
+    return "updated";
+  }
+  await cal.events.insert({ calendarId: "primary", requestBody });
   return "created";
 }
 
 export interface InterviewSyncMetrics {
   interviews: number;
   eventsCreated: number;
+  eventsUpdated: number;
   eventsSkippedExisting: number;
+  eventsSkippedNoReply: number;
   eventsErrored: number;
   lastCalendarError?: string;
   calendarAuthorized: boolean;
@@ -338,10 +455,14 @@ export async function fetchApplications(): Promise<SyncResult> {
   const metrics: InterviewSyncMetrics = {
     interviews: 0,
     eventsCreated: 0,
+    eventsUpdated: 0,
     eventsSkippedExisting: 0,
+    eventsSkippedNoReply: 0,
     eventsErrored: 0,
     calendarAuthorized,
   };
+  // Each interview thread is handled once even if several of its messages match.
+  const processedThreads = new Set<string>();
 
   // Fetch message metadata in parallel batches to stay within the time limit.
   const BATCH = 20;
@@ -382,37 +503,28 @@ export async function fetchApplications(): Promise<SyncResult> {
         emailFrom: from,
       });
 
-      // If it's an interview email, fetch the full body and try to
-      // auto-create a Google Calendar event (idempotent by gmail message id).
+      // If it's an interview email, read the whole thread (incl. the user's
+      // replies) and upsert a single calendar event for it.
       if (status === "interview") {
         metrics.interviews += 1;
+        const threadId = data.threadId ?? data.id;
         if (!calendarAuthorized) {
           metrics.eventsErrored += 1;
           metrics.lastCalendarError =
             "Calendar permission not granted. Disconnect and reconnect Gmail and approve the calendar access on the consent screen.";
-        } else {
+        } else if (!processedThreads.has(threadId)) {
+          processedThreads.add(threadId);
           try {
-            let body = "";
-            try {
-              const full = await gmail.users.messages.get({
-                userId: "me",
-                id: data.id,
-                format: "full",
-              });
-              body = extractPlainText(full.data.payload);
-            } catch {
-              /* fall back to snippet only */
-            }
-            const outcome = await ensureInterviewEvent(client, {
-              messageId: data.id,
+            const outcome = await upsertInterviewEvent(client, gmail, {
+              threadId,
               company,
               subject,
               from,
-              snippet,
-              body,
               receivedAt: new Date(dateMs),
             });
             if (outcome === "created") metrics.eventsCreated += 1;
+            else if (outcome === "updated") metrics.eventsUpdated += 1;
+            else if (outcome === "skipped") metrics.eventsSkippedNoReply += 1;
             else metrics.eventsSkippedExisting += 1;
           } catch (err) {
             metrics.eventsErrored += 1;
