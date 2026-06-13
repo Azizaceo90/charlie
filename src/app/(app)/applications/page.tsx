@@ -58,15 +58,15 @@ export default function ApplicationsPage() {
 }
 
 function ApplicationsInner() {
-  const { applications, setApplicationsAll, gmail, setGmail } = useData();
+  const { applications, setApplicationsAll, gmail, setGmail, currentUser } =
+    useData();
   const [range, setRange] = useState<RangeKey>("7days");
   const [now, setNow] = useState(() => new Date());
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [calTest, setCalTest] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const params = useSearchParams();
 
   // Refresh "now" each minute so range buckets stay accurate.
@@ -88,24 +88,11 @@ function ApplicationsInner() {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         setApplicationsAll(data.applications ?? []);
-        const iv = data.interviews as
-          | {
-              interviews: number;
-              eventsCreated: number;
-              calendarAuthorized: boolean;
-            }
-          | undefined;
         setGmail((g) => ({
           ...g,
           connected: true,
           lastSynced: data.syncedAt,
-          calendarAuthorized: iv?.calendarAuthorized ?? g.calendarAuthorized,
         }));
-        if (iv && iv.eventsCreated > 0) {
-          setToast(
-            `Added ${iv.eventsCreated} interview${iv.eventsCreated === 1 ? "" : "s"} to your Google Calendar.`
-          );
-        }
       } catch {
         /* silent */
       }
@@ -168,44 +155,12 @@ function ApplicationsInner() {
       if (res.ok) {
         const data = await res.json();
         setApplicationsAll(data.applications ?? []);
-        const iv = data.interviews as
-          | {
-              interviews: number;
-              eventsCreated: number;
-              eventsUpdated?: number;
-              eventsSkippedExisting: number;
-              eventsSkippedNoReply?: number;
-              eventsErrored: number;
-              lastCalendarError?: string;
-              calendarAuthorized: boolean;
-              calendarWritingEnabled?: boolean;
-            }
-          | undefined;
         setGmail({
           ...gmail,
           connected: true,
           lastSynced: data.syncedAt,
-          calendarAuthorized: iv?.calendarAuthorized ?? gmail.calendarAuthorized,
         });
-        let msg = `Synced ${data.synced ?? 0} applications from Gmail.`;
-        if (iv && iv.interviews > 0 && iv.calendarWritingEnabled !== false) {
-          if (!iv.calendarAuthorized) {
-            msg += ` ${iv.interviews} interview${iv.interviews === 1 ? "" : "s"} found but calendar permission missing — reconnect Gmail and approve calendar access.`;
-          } else {
-            const added = iv.eventsCreated ?? 0;
-            const updated = iv.eventsUpdated ?? 0;
-            const waiting = iv.eventsSkippedNoReply ?? 0;
-            const bits: string[] = [];
-            if (added > 0) bits.push(`added ${added}`);
-            if (updated > 0) bits.push(`updated ${updated}`);
-            if (bits.length) msg += ` Calendar: ${bits.join(", ")} interview event${added + updated === 1 ? "" : "s"}.`;
-            if (waiting > 0)
-              msg += ` ${waiting} interview thread${waiting === 1 ? "" : "s"} waiting on your reply before scheduling.`;
-            if (!bits.length && !waiting && iv.eventsErrored > 0 && iv.lastCalendarError)
-              msg += ` Calendar issue: ${iv.lastCalendarError}`;
-          }
-        }
-        setToast(msg);
+        setToast(`Synced ${data.synced ?? 0} applications from Gmail.`);
       } else if (res.status === 401) {
         setToast("Gmail isn't connected yet.");
       } else {
@@ -218,31 +173,32 @@ function ApplicationsInner() {
     }
   }
 
-  async function runCalendarTest() {
-    setTesting(true);
-    setCalTest(null);
+  // One-time cleanup: remove the calendar events THIS app created during
+  // earlier tests, leaving the dedicated importer's events untouched.
+  async function runCleanup() {
+    if (
+      !window.confirm(
+        "Delete the Google Calendar events this app created (signed “Added automatically by Career Ops”)? Your importer's events are not affected."
+      )
+    )
+      return;
+    setCleaning(true);
     try {
-      const res = await fetch("/api/gmail/calendar-test", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) {
-        setCalTest(
-          `✓ Calendar write succeeded — test event created for tomorrow. Check your Google Calendar to see it. You can delete it.`
-        );
-      } else if (data.stage === "scope") {
-        setCalTest(
-          `✗ ${data.error}\n\nGranted scopes:\n${(data.grantedScopes || []).join("\n")}`
+      const res = await fetch("/api/gmail/cleanup-events", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setToast(
+          (data.deleted ?? 0) > 0
+            ? `Removed ${data.deleted} calendar event${data.deleted === 1 ? "" : "s"} this app created.`
+            : "No calendar events from this app were found."
         );
       } else {
-        setCalTest(
-          `✗ Calendar API error (${data.code ?? "?"}): ${data.error}\n\nGranted scopes:\n${(data.grantedScopes || []).join("\n")}${data.detail ? `\n\nDetail: ${JSON.stringify(data.detail, null, 2)}` : ""}`
-        );
+        setToast(data.error ?? "Cleanup failed.");
       }
-    } catch (err) {
-      setCalTest(
-        `✗ Test request failed: ${err instanceof Error ? err.message : String(err)}`
-      );
+    } catch {
+      setToast("Could not reach Google Calendar.");
     } finally {
-      setTesting(false);
+      setCleaning(false);
     }
   }
 
@@ -302,14 +258,17 @@ function ApplicationsInner() {
                   />
                   {syncing ? "Syncing…" : "Sync now"}
                 </button>
-                <button
-                  className="btn-ghost"
-                  onClick={runCalendarTest}
-                  disabled={testing}
-                >
-                  <CalendarClock className="h-4 w-4" />
-                  {testing ? "Testing…" : "Test calendar"}
-                </button>
+                {currentUser?.role === "admin" && (
+                  <button
+                    className="btn-ghost"
+                    onClick={runCleanup}
+                    disabled={cleaning}
+                    title="One-time: remove the calendar events this app created earlier"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {cleaning ? "Cleaning…" : "Clean up calendar events"}
+                  </button>
+                )}
                 <button className="btn-subtle" onClick={disconnect}>
                   <Unplug className="h-4 w-4" /> Disconnect
                 </button>
@@ -328,35 +287,6 @@ function ApplicationsInner() {
         onConnect={connect}
         onLearnMore={() => setShowHelp(true)}
       />
-
-      {gmail.connected && gmail.calendarAuthorized === false && (
-        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-4 py-3 text-sm sm:flex-row sm:items-center">
-          <CalendarClock className="h-5 w-5 shrink-0 text-accent-amber" />
-          <span className="text-neutral-800">
-            Interview emails won&apos;t auto-add to Google Calendar — your Gmail
-            connection is missing calendar permission. Reconnect and tick the
-            <strong> calendar </strong> box on the consent screen.
-          </span>
-          <button className="btn-primary text-xs sm:ml-auto" onClick={connect}>
-            Reconnect Gmail
-          </button>
-        </div>
-      )}
-      {gmail.connected && gmail.calendarAuthorized === true && (
-        <div className="mb-5 flex items-center gap-3 rounded-lg border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm">
-          <CalendarClock className="h-5 w-5 shrink-0 text-accent-green" />
-          <span className="text-neutral-800">
-            Google Calendar connected. Interview applications are tracked here;
-            calendar events are handled by your dedicated importer.
-          </span>
-        </div>
-      )}
-
-      {calTest && (
-        <div className="mb-5 whitespace-pre-wrap rounded-lg border border-line bg-bg-card px-4 py-3 font-mono text-xs text-neutral-800">
-          {calTest}
-        </div>
-      )}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <RangeFilter value={range} onChange={setRange} />
