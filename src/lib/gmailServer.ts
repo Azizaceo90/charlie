@@ -31,10 +31,17 @@ const MONTHS: Record<string, number> = {
   dec: 11, december: 11,
 };
 
-/** Best-effort date+time extraction from an interview email. */
+/** Best-effort date+time extraction from an interview email.
+ *
+ * - date **and** time → a 30-minute timed slot (`allDay: false`).
+ * - date only (e.g. "availability on 6/11 or 6/12") → an all-day event on the
+ *   first proposed date (`allDay: true`), so it lands on the right day even
+ *   though the exact time still needs confirming.
+ * - no date → null (caller uses a tentative fallback slot).
+ */
 export function parseInterviewSlot(
   text: string
-): { start: Date; end: Date } | null {
+): { start: Date; end: Date; allDay: boolean } | null {
   // 1) "November 25" / "Nov 25, 2025"
   const monthDate = text.match(
     /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
@@ -70,6 +77,14 @@ export function parseInterviewSlot(
   if (year === null || month === null || day === null) return null;
   if (month < 0 || month > 11 || day < 1 || day > 31) return null;
 
+  // A date with no time → all-day event on that date (lands on the right day,
+  // exact time to be confirmed with the sender).
+  if (!timeAmPm && !time24) {
+    const dayStart = new Date(year, month, day);
+    if (Number.isNaN(dayStart.getTime())) return null;
+    return { start: dayStart, end: dayStart, allDay: true };
+  }
+
   let hour = 9;
   let minute = 0;
   if (timeAmPm) {
@@ -80,13 +95,19 @@ export function parseInterviewSlot(
   } else if (time24) {
     hour = parseInt(time24[1], 10);
     minute = parseInt(time24[2], 10);
-  } else {
-    return null; // need a time, not just a date
   }
 
   const start = new Date(year, month, day, hour, minute);
   if (Number.isNaN(start.getTime())) return null;
-  return { start, end: new Date(start.getTime() + 30 * 60 * 1000) };
+  return { start, end: new Date(start.getTime() + 30 * 60 * 1000), allDay: false };
+}
+
+/** Format a Date as a local YYYY-MM-DD string for all-day calendar events. */
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /** Tentative reminder slot when no date/time could be parsed. */
@@ -250,27 +271,42 @@ async function ensureInterviewEvent(
   const haystack = `${args.subject}\n${args.snippet}\n${args.body}`;
   const parsed = parseInterviewSlot(haystack);
   const slot = parsed ?? fallbackSlot(args.receivedAt);
-  const tentative = !parsed;
+  const allDay = parsed?.allDay ?? false;
+  // Time is only "known" when we parsed an explicit clock time.
+  const timeKnown = parsed != null && !parsed.allDay;
+
+  const summary = timeKnown
+    ? `Interview: ${args.company}`
+    : allDay
+      ? `Interview: ${args.company} (confirm time)`
+      : `Interview: ${args.company} (time TBD)`;
+
+  const start = allDay
+    ? { date: ymd(slot.start) }
+    : { dateTime: slot.start.toISOString() };
+  const end = allDay
+    ? { date: ymd(new Date(slot.start.getTime() + 24 * 60 * 60 * 1000)) }
+    : { dateTime: slot.end.toISOString() };
 
   await cal.events.insert({
     calendarId: "primary",
     requestBody: {
-      summary: tentative
-        ? `Interview: ${args.company} (time TBD)`
-        : `Interview: ${args.company}`,
+      summary,
       description:
         `${args.subject}\n\nFrom: ${args.from}\n\n` +
-        (tentative
-          ? "Time not detected in email — tentative slot. Please confirm with the recruiter and update this event.\n\n"
-          : "") +
+        (timeKnown
+          ? ""
+          : allDay
+            ? "Proposed date detected from the email — exact time still needs to be confirmed with the sender. Update this event once you agree on a time.\n\n"
+            : "Time not detected in the email — tentative slot. Please confirm with the sender and update this event.\n\n") +
         "Added automatically by Career Ops.",
-      start: { dateTime: slot.start.toISOString() },
-      end: { dateTime: slot.end.toISOString() },
+      start,
+      end,
       extendedProperties: {
         private: {
           gmailMsgId: args.messageId,
           source: "career-ops",
-          tentative: tentative ? "true" : "false",
+          tentative: timeKnown ? "false" : "true",
         },
       },
     },

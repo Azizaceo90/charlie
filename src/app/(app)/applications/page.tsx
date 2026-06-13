@@ -336,7 +336,7 @@ function ApplicationsInner() {
           <CalendarClock className="h-5 w-5 shrink-0 text-accent-green" />
           <span className="text-neutral-800">
             Google Calendar connected — interview emails will be added
-            automatically (checked every 15 minutes).
+            automatically (checked once a day, or use Sync now anytime).
           </span>
         </div>
       )}
