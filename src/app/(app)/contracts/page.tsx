@@ -295,6 +295,7 @@ export default function ContractsPage() {
           open={showIssue}
           onClose={() => setShowIssue(false)}
           employees={users.filter((u) => u.role === "employee")}
+          issuerSignature={currentUser?.signature ?? null}
           onIssue={async (input) => {
             const created = await addContract(input);
             setSelectedId(created.id);
@@ -546,11 +547,13 @@ function IssueModal({
   onClose,
   employees,
   onIssue,
+  issuerSignature,
 }: {
   open: boolean;
   onClose: () => void;
   employees: { id: string; name: string }[];
   onIssue: (input: Omit<Contract, "id">) => Promise<void>;
+  issuerSignature?: string | null;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -664,10 +667,27 @@ function IssueModal({
               pdfDataUrl={dataUrl}
               value={fields}
               onChange={setFields}
+              issuerSignature={issuerSignature}
             />
             <p className="mt-2 text-[11px] text-neutral-500">
               Optional. If you don't add any fields, the employee will sign
               with the standard name / address / phone form below the signature.
+              {issuerSignature ? (
+                <>
+                  {" "}
+                  Use <strong>My signature</strong> to drop your own signature
+                  onto the document — it's stamped in when you issue.
+                </>
+              ) : (
+                <>
+                  {" "}
+                  Tip: save a signature on{" "}
+                  <a href="/account" className="text-brand underline">
+                    My Account
+                  </a>{" "}
+                  to be able to add your own signature here.
+                </>
+              )}
             </p>
           </div>
         )}

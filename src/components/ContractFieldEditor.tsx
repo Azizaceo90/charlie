@@ -26,15 +26,22 @@ export default function ContractFieldEditor({
   pdfDataUrl,
   value,
   onChange,
+  issuerSignature,
 }: {
   pdfDataUrl: string;
   value: ContractField[];
   onChange: (fields: ContractField[]) => void;
+  /** The issuer's saved signature; enables the "My signature" tool. */
+  issuerSignature?: string | null;
 }) {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [pages, setPages] = useState<PageRenderInfo[]>([]);
   const [tool, setTool] = useState<ContractField["type"] | null>(null);
+
+  const tools = issuerSignature
+    ? [...TOOLS, { type: "issuerSignature" as const, label: "My signature", w: 200, h: 70 }]
+    : TOOLS;
 
   useEffect(() => {
     let active = true;
@@ -59,7 +66,7 @@ export default function ContractFieldEditor({
     const pageDim = pages[idx];
     const pageEl = pageRefs.current[idx];
     if (!pageDim || !pageEl) return;
-    const t = TOOLS.find((x) => x.type === tool)!;
+    const t = tools.find((x) => x.type === tool)!;
     const rect = pageEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -121,7 +128,7 @@ export default function ContractFieldEditor({
           Pick a field type then click on a page to place it.
         </span>
         <div className="flex flex-wrap gap-1">
-          {TOOLS.map((t) => (
+          {tools.map((t) => (
             <button
               key={t.type}
               type="button"
@@ -168,7 +175,11 @@ export default function ContractFieldEditor({
                 <div
                   key={f.id}
                   onMouseDown={(e) => dragStart(f.id, e)}
-                  className="absolute cursor-move rounded border-2 border-dashed border-brand bg-brand/15 text-[10px] font-semibold uppercase tracking-wider text-brand"
+                  className={`absolute cursor-move rounded border-2 border-dashed text-[10px] font-semibold uppercase tracking-wider ${
+                    f.type === "issuerSignature"
+                      ? "border-accent-green bg-accent-green/10 text-accent-green"
+                      : "border-brand bg-brand/15 text-brand"
+                  }`}
                   style={{
                     left: f.xRatio * p.width,
                     top: f.yRatio * p.height,
@@ -176,15 +187,23 @@ export default function ContractFieldEditor({
                     height: f.hRatio * p.height,
                   }}
                 >
-                  <div className="flex items-center justify-between gap-1 px-1 pt-0.5">
-                    <span>{f.type}</span>
+                  {f.type === "issuerSignature" && issuerSignature && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={issuerSignature}
+                      alt="My signature"
+                      className="pointer-events-none absolute inset-0 h-full w-full object-contain p-1"
+                    />
+                  )}
+                  <div className="relative flex items-center justify-between gap-1 px-1 pt-0.5">
+                    <span>{f.type === "issuerSignature" ? "my signature" : f.type}</span>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         remove(f.id);
                       }}
-                      className="text-brand hover:text-accent-red"
+                      className="hover:text-accent-red"
                       title="Remove field"
                     >
                       <Trash2 className="h-3 w-3" />
