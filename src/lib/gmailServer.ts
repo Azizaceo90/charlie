@@ -111,6 +111,11 @@ export function parseInterviewSlot(
  * Used when the email itself doesn't name a timezone. */
 const CALENDAR_TZ = process.env.CALENDAR_TZ || "America/New_York";
 
+/** Whether this app writes interview events to Google Calendar. Off by default
+ * because a separate importer (interview-ingest) owns calendar writing; set
+ * CAREER_OPS_CALENDAR=1 to let Career Ops create events instead. */
+const CALENDAR_WRITE_ENABLED = process.env.CAREER_OPS_CALENDAR === "1";
+
 /** Detect a US timezone named in the email text (e.g. "2:30pm Mountain Time"),
  * so the event is stamped in the timezone the sender actually meant. Returns an
  * IANA zone, or null when none is named. Full words and 3-letter abbreviations
@@ -450,6 +455,8 @@ export interface InterviewSyncMetrics {
   eventsErrored: number;
   lastCalendarError?: string;
   calendarAuthorized: boolean;
+  /** False when this app is intentionally not writing calendar events. */
+  calendarWritingEnabled: boolean;
 }
 
 export interface SyncResult {
@@ -511,6 +518,7 @@ export async function fetchApplications(): Promise<SyncResult> {
     eventsSkippedNoReply: 0,
     eventsErrored: 0,
     calendarAuthorized,
+    calendarWritingEnabled: CALENDAR_WRITE_ENABLED,
   };
   // Each interview thread is handled once even if several of its messages match.
   const processedThreads = new Set<string>();
@@ -559,7 +567,9 @@ export async function fetchApplications(): Promise<SyncResult> {
       if (status === "interview") {
         metrics.interviews += 1;
         const threadId = data.threadId ?? data.id;
-        if (!calendarAuthorized) {
+        if (!CALENDAR_WRITE_ENABLED) {
+          // Calendar writing is owned by a separate importer; skip silently.
+        } else if (!calendarAuthorized) {
           metrics.eventsErrored += 1;
           metrics.lastCalendarError =
             "Calendar permission not granted. Disconnect and reconnect Gmail and approve the calendar access on the consent screen.";
