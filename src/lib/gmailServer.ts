@@ -107,8 +107,21 @@ export function parseInterviewSlot(
   return { start, end: new Date(start.getTime() + 30 * 60 * 1000), allDay: false };
 }
 
-/** Timezone interview events are stamped in (override with CALENDAR_TZ). */
+/** Default timezone interview events are stamped in (override with CALENDAR_TZ).
+ * Used when the email itself doesn't name a timezone. */
 const CALENDAR_TZ = process.env.CALENDAR_TZ || "America/New_York";
+
+/** Detect a US timezone named in the email text (e.g. "2:30pm Mountain Time"),
+ * so the event is stamped in the timezone the sender actually meant. Returns an
+ * IANA zone, or null when none is named. Full words and 3-letter abbreviations
+ * only — the bare 2-letter forms (ET/CT/MT/PT) are too ambiguous to trust. */
+function detectTimeZone(text: string): string | null {
+  if (/\b(eastern|EST|EDT)\b/i.test(text)) return "America/New_York";
+  if (/\b(central|CST|CDT)\b/i.test(text)) return "America/Chicago";
+  if (/\b(mountain|MST|MDT)\b/i.test(text)) return "America/Denver";
+  if (/\b(pacific|PST|PDT)\b/i.test(text)) return "America/Los_Angeles";
+  return null;
+}
 
 /** Format the wall-clock (UTC-encoded) Date as YYYY-MM-DD for all-day events. */
 function ymd(d: Date): string {
@@ -342,21 +355,29 @@ async function upsertInterviewEvent(
   if (!replied) return "skipped";
 
   // Newest message with an explicit time wins (the agreed slot); otherwise the
-  // newest message that yields a date (proposed, all-day).
+  // newest message that yields a date (proposed, all-day). Remember the text of
+  // the chosen message so we can read the timezone it states.
   const sorted = [...messages].sort((a, b) => b.date - a.date);
   let parsed: ReturnType<typeof parseInterviewSlot> = null;
+  let parsedText = "";
   for (const m of sorted) {
     const s = parseInterviewSlot(m.text);
     if (s && !s.allDay) {
       parsed = s;
+      parsedText = m.text;
       break;
     }
-    if (s && !parsed) parsed = s;
+    if (s && !parsed) {
+      parsed = s;
+      parsedText = m.text;
+    }
   }
 
   const slot = parsed ?? fallbackSlot(args.receivedAt);
   const allDay = parsed?.allDay ?? false;
   const timeKnown = parsed != null && !parsed.allDay;
+  // Prefer the timezone the email actually names, else the configured default.
+  const eventTz = (timeKnown && detectTimeZone(parsedText)) || CALENDAR_TZ;
 
   const summary = timeKnown
     ? `Interview: ${args.company}`
@@ -366,13 +387,15 @@ async function upsertInterviewEvent(
 
   const start = allDay
     ? { date: ymd(slot.start) }
-    : { dateTime: localDateTime(slot.start), timeZone: CALENDAR_TZ };
+    : { dateTime: localDateTime(slot.start), timeZone: eventTz };
   const end = allDay
     ? { date: ymd(new Date(slot.start.getTime() + 24 * 60 * 60 * 1000)) }
-    : { dateTime: localDateTime(slot.end), timeZone: CALENDAR_TZ };
+    : { dateTime: localDateTime(slot.end), timeZone: eventTz };
 
   // Stable key so re-syncs only patch when the slot actually changed.
-  const slotKey = allDay ? `d:${ymd(slot.start)}` : `t:${localDateTime(slot.start)}`;
+  const slotKey = allDay
+    ? `d:${ymd(slot.start)}`
+    : `t:${localDateTime(slot.start)}@${eventTz}`;
 
   const description =
     `${args.subject}\n\nFrom: ${args.from}\n\n` +
@@ -462,6 +485,9 @@ export async function fetchApplications(): Promise<SyncResult> {
     'OR "zoom meeting" OR "zoom link" OR "join zoom" OR "google meet" OR "meet.google.com"',
     'OR "calendar invite" OR "calendar invitation"',
     'OR "look forward to meeting" OR "look forward to speaking" OR "looking forward to meeting" OR "looking forward to speaking"',
+    'OR "schedule a call" OR "schedule a phone call" OR "schedule a time" OR "schedule a meeting"',
+    'OR "set up a call" OR "set up a time" OR "hop on a call" OR "jump on a call"',
+    'OR "these times" OR "one of these times" OR "your availability"',
     'OR "phone screen" OR "online assessment" OR "coding challenge" OR "take-home"',
     'OR "pleased to offer" OR "offer of employment" OR "offer letter"',
     'OR "regret to inform" OR "move forward with your application")',

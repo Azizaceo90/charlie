@@ -47,10 +47,17 @@ const SIGNALS: Signal[] = [
     status: "interview",
     patterns: [
       /\binterview\b/i,
-      /phone screen/i,
-      /schedule (?:a |your )?(?:call|time|chat|conversation|meeting|interview)/i,
+      /phone (?:screen|call)/i,
+      // "schedule a phone call", "schedule us 30 minutes", "schedule a time"…
+      /schedule (?:a |an |us |you |your )?(?:\w+\s+){0,2}(?:call|time|chat|conversation|meeting|interview|minutes?)/i,
+      /(?:hop|jump|get) on (?:a )?(?:quick )?(?:phone )?call/i,
+      /set ?up (?:a |an )?(?:phone )?(?:call|time|meeting|chat)/i,
       /invite you to (?:a |an )?(?:interview|call|conversation)/i,
-      /(?:like to|love to) (?:speak|chat|connect|meet) (?:with )?you/i,
+      /(?:like to|love to) (?:speak|chat|connect|meet|schedule) (?:with )?you/i,
+      // proposing/confirming availability or specific times
+      /(?:choose|pick|select|confirm) (?:one of )?(?:these|the following|a) (?:times?|slots?)/i,
+      /(?:these|the following|a few) (?:times?|slots?) (?:work|that work|below|available)/i,
+      /your availability/i,
       /next (?:round|step)/i,
       /zoom (?:meeting|link)/i,
       /join zoom/i,
