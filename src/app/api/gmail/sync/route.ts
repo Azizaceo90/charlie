@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "Gmail not connected" }, { status: 401 });
   }
   try {
-    const { applications: fetched, metrics } = await fetchApplications();
+    const fetched = await fetchApplications();
 
     // Replace previously synced Gmail rows; keep manual entries untouched.
     await prisma.jobApplication.deleteMany({ where: { source: "gmail" } });
@@ -37,7 +37,6 @@ export async function GET() {
       applications,
       synced: fetched.length,
       syncedAt: new Date().toISOString(),
-      interviews: metrics,
     });
   } catch (err) {
     return NextResponse.json(
