@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { contractEmailHtml, sendEmail } from "@/lib/email";
+import { parseContractFields } from "@/lib/types";
+import { stampFieldsInPdf } from "@/lib/pdfSign";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,14 +18,34 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as Record<string, unknown>;
   delete body.id;
 
-  const fieldsValue =
+  // Split the placed fields: the issuer's own signature is stamped into the
+  // PDF now (at issue time); the rest are left for the employee to fill.
+  const allFields =
     typeof body.fields === "string"
-      ? body.fields
+      ? parseContractFields(body.fields)
       : Array.isArray(body.fields)
-        ? JSON.stringify(body.fields)
-        : null;
+        ? parseContractFields(JSON.stringify(body.fields))
+        : [];
+  const issuerFields = allFields.filter((f) => f.type === "issuerSignature");
+  const employeeFields = allFields.filter((f) => f.type !== "issuerSignature");
 
-  const dataUrl = String(body.dataUrl ?? "");
+  let dataUrl = String(body.dataUrl ?? "");
+  if (issuerFields.length > 0 && me.signature) {
+    // Reuse the field stamper, treating each issuer slot as a signature image.
+    const signatureFields = issuerFields.map((f) => ({
+      ...f,
+      type: "signature" as const,
+    }));
+    const values = Object.fromEntries(
+      issuerFields.map((f) => [f.id, me.signature as string])
+    );
+    dataUrl = await stampFieldsInPdf(dataUrl, signatureFields, values);
+  }
+
+  const fieldsValue = employeeFields.length
+    ? JSON.stringify(employeeFields)
+    : null;
+
   const contract = await prisma.contract.create({
     data: {
       title: String(body.title ?? "Contract"),
