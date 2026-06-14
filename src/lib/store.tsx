@@ -112,6 +112,8 @@ interface AppData {
   unreadCount: number;
   markNotificationsRead: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+  /** Reload all data from the server (e.g. after another user's action). */
+  refreshData: () => Promise<void>;
 
   applications: JobApplication[];
   addApplication: (input: Omit<JobApplication, "id">) => Promise<JobApplication>;
@@ -664,6 +666,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     unreadCount: notifications.filter((n) => !n.read).length,
     markNotificationsRead,
     refreshNotifications,
+    refreshData: loadBootstrap,
     applications,
     addApplication,
     removeApplication,
