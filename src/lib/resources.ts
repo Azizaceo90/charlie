@@ -9,6 +9,8 @@ export const RESOURCES = {
   contracts: { model: "contract", dates: ["issuedAt", "signedAt"] },
   applicants: { model: "applicant", dates: ["appliedAt"] },
   listings: { model: "jobListing", dates: ["postedAt"] },
+  expenses: { model: "expense", dates: ["date"] },
+  payroll: { model: "payrollEntry", dates: ["periodStart", "periodEnd", "paidAt"] },
 } as const;
 
 export type ResourceKey = keyof typeof RESOURCES;

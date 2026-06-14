@@ -10,6 +10,7 @@ import {
   UserCircle,
   UserPlus,
   Users,
+  Wallet,
   Wand2,
 } from "lucide-react";
 import { Role } from "@/lib/types";
@@ -39,6 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/account", label: "My Account", icon: UserCircle, color: "#22c55e", group: "Personal" },
   { href: "/sops", label: "SOPs", icon: FileText, color: "#ff5ac4", group: "Workspace" },
   { href: "/contracts", label: "Contracts", icon: FileSignature, color: "#ffcb00", group: "Workspace" },
+  { href: "/payroll", label: "Payroll & Expenses", icon: Wallet, color: "#16a34a", group: "Workspace" },
   { href: "/applicants", label: "Applicants", icon: Users, color: "#e2445c", adminOnly: true, group: "Workspace" },
   { href: "/team", label: "Team", icon: UserPlus, color: "#784bd1", adminOnly: true, group: "Workspace" },
 ];

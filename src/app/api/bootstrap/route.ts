@@ -24,6 +24,8 @@ export async function GET() {
     listings,
     notifications,
     personalDocs,
+    expenses,
+    payroll,
   ] = await Promise.all([
     prisma.user.findMany({
       orderBy: { name: "asc" },
@@ -57,6 +59,14 @@ export async function GET() {
       where: { userId: me.id },
       orderBy: { uploadedAt: "desc" },
     }),
+    prisma.expense.findMany({
+      where: me.role === "admin" ? {} : { userId: me.id },
+      orderBy: { date: "desc" },
+    }),
+    prisma.payrollEntry.findMany({
+      where: me.role === "admin" ? {} : { userId: me.id },
+      orderBy: { periodStart: "desc" },
+    }),
   ]);
 
   return NextResponse.json({
@@ -69,6 +79,8 @@ export async function GET() {
     listings,
     notifications,
     personalDocs,
+    expenses,
+    payroll,
     me: {
       fullLegalName: me.fullLegalName,
       dateOfBirth: me.dateOfBirth?.toISOString() ?? null,

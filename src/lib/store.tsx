@@ -12,8 +12,10 @@ import {
   Applicant,
   AppNotification,
   Contract,
+  Expense,
   JobApplication,
   JobListing,
+  PayrollEntry,
   PersonalDoc,
   SopDoc,
   TimeEntry,
@@ -150,6 +152,16 @@ interface AppData {
   addListing: (input: Omit<JobListing, "id">) => Promise<JobListing>;
   updateListing: (id: string, patch: Partial<JobListing>) => Promise<void>;
 
+  expenses: Expense[];
+  addExpense: (input: Omit<Expense, "id">) => Promise<Expense>;
+  updateExpense: (id: string, patch: Partial<Expense>) => Promise<void>;
+  removeExpense: (id: string) => Promise<void>;
+
+  payroll: PayrollEntry[];
+  addPayroll: (input: Omit<PayrollEntry, "id">) => Promise<PayrollEntry>;
+  updatePayroll: (id: string, patch: Partial<PayrollEntry>) => Promise<void>;
+  removePayroll: (id: string) => Promise<void>;
+
   gmail: GmailStatus;
   setGmail: React.Dispatch<React.SetStateAction<GmailStatus>>;
 }
@@ -173,6 +185,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [listings, setListings] = useState<JobListing[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [payroll, setPayroll] = useState<PayrollEntry[]>([]);
   const [gmail, setGmail] = useState<GmailStatus>({
     connected: false,
     configured: false,
@@ -191,6 +205,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setContracts(data.contracts ?? []);
     setApplicants(data.applicants ?? []);
     setListings(data.listings ?? []);
+    setExpenses(data.expenses ?? []);
+    setPayroll(data.payroll ?? []);
     setNotifications(data.notifications ?? []);
     setPersonalDocs(data.personalDocs ?? []);
     if (data.me) {
@@ -206,6 +222,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setContracts([]);
     setApplicants([]);
     setListings([]);
+    setExpenses([]);
+    setPayroll([]);
     setNotifications([]);
     setPersonalDocs([]);
   }, []);
@@ -569,6 +587,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // ── Expenses ──
+  const addExpense = useCallback(async (input: Omit<Expense, "id">) => {
+    const created = await apiCreate<Expense>("expenses", input);
+    setExpenses((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const updateExpense = useCallback(
+    async (id: string, patch: Partial<Expense>) => {
+      const updated = await apiPatch<Expense>("expenses", id, patch);
+      setExpenses((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    },
+    []
+  );
+  const removeExpense = useCallback(async (id: string) => {
+    await apiDelete("expenses", id);
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  // ── Payroll ──
+  const addPayroll = useCallback(async (input: Omit<PayrollEntry, "id">) => {
+    const created = await apiCreate<PayrollEntry>("payroll", input);
+    setPayroll((prev) => [created, ...prev]);
+    return created;
+  }, []);
+  const updatePayroll = useCallback(
+    async (id: string, patch: Partial<PayrollEntry>) => {
+      const updated = await apiPatch<PayrollEntry>("payroll", id, patch);
+      setPayroll((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    },
+    []
+  );
+  const removePayroll = useCallback(async (id: string) => {
+    await apiDelete("payroll", id);
+    setPayroll((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   // ── Listings ──
   const addListing = useCallback(async (input: Omit<JobListing, "id">) => {
     const created = await apiCreate<JobListing>("listings", input);
@@ -629,6 +683,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     listings,
     addListing,
     updateListing,
+    expenses,
+    addExpense,
+    updateExpense,
+    removeExpense,
+    payroll,
+    addPayroll,
+    updatePayroll,
+    removePayroll,
     gmail,
     setGmail,
   };
