@@ -18,6 +18,23 @@ import { Expense, PayrollEntry, TimeEntry } from "@/lib/types";
 import { Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
 import { dateOnly } from "@/lib/format";
 
+/** Monday 00:00 (local) for the given date — matches the timesheet week. */
+function weekStartOf(d: Date): Date {
+  const out = new Date(d);
+  const diff = (out.getDay() + 6) % 7; // days back to Monday
+  out.setDate(out.getDate() - diff);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 /** Sum a user's approved Time Tracker hours within a pay period (inclusive). */
 function approvedHoursFor(
   userId: string,
@@ -430,16 +447,102 @@ function AddExpenseModal({
 }
 
 function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
-  const { payroll, addPayroll, updatePayroll, removePayroll, users } = useData();
+  const {
+    payroll,
+    addPayroll,
+    updatePayroll,
+    removePayroll,
+    users,
+    timeEntries,
+    editUser,
+  } = useData();
   const [showAdd, setShowAdd] = useState(false);
   const [showRun, setShowRun] = useState(false);
   const employees = users.filter((u) => u.role === "employee");
+
+  // Submitted timesheets (per employee per week) not yet turned into payroll.
+  const awaiting = useMemo(() => {
+    if (!isAdmin) return [];
+    const map = new Map<
+      string,
+      { userId: string; weekStart: Date; hours: number; approved: boolean }
+    >();
+    for (const t of timeEntries) {
+      if (!t.submittedAt || !t.clockOut) continue;
+      const ws = weekStartOf(new Date(t.clockIn));
+      const key = `${t.userId}|${ws.getTime()}`;
+      const dur =
+        (new Date(t.clockOut).getTime() - new Date(t.clockIn).getTime()) /
+        3_600_000;
+      const cur =
+        map.get(key) ??
+        { userId: t.userId, weekStart: ws, hours: 0, approved: true };
+      cur.hours += dur;
+      if (!t.approvedAt) cur.approved = false;
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .filter(
+        (v) =>
+          !payroll.some(
+            (p) =>
+              p.userId === v.userId &&
+              sameDay(new Date(p.periodStart), v.weekStart)
+          )
+      )
+      .map((v) => {
+        const u = users.find((x) => x.id === v.userId);
+        return {
+          ...v,
+          hours: Math.round(v.hours * 100) / 100,
+          userName: u?.name ?? "Unknown",
+          payRate: u?.payRate ?? null,
+          paymentMethod: u?.paymentMethod ?? null,
+        };
+      })
+      .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+  }, [isAdmin, timeEntries, payroll, users]);
 
   const totals = useMemo(() => {
     const sum = (s: string) =>
       payroll.filter((p) => p.status === s).reduce((a, p) => a + p.gross, 0);
     return { pending: sum("pending"), paid: sum("paid") };
   }, [payroll]);
+
+  const [tsRates, setTsRates] = useState<Record<string, string>>({});
+
+  async function addFromTimesheet(row: {
+    userId: string;
+    userName: string;
+    weekStart: Date;
+    hours: number;
+    payRate: number | null;
+    paymentMethod: string | null;
+  }) {
+    const key = `${row.userId}|${row.weekStart.getTime()}`;
+    const rate =
+      parseFloat(tsRates[key] ?? (row.payRate != null ? String(row.payRate) : "")) ||
+      0;
+    const end = new Date(row.weekStart);
+    end.setDate(end.getDate() + 6);
+    try {
+      await addPayroll({
+        userId: row.userId,
+        userName: row.userName,
+        periodStart: row.weekStart.toISOString(),
+        periodEnd: end.toISOString(),
+        hours: row.hours,
+        rate,
+        gross: Math.round(row.hours * rate * 100) / 100,
+        status: "pending",
+        method: row.paymentMethod ?? null,
+        note: null,
+      });
+      if (rate !== (row.payRate ?? 0)) await editUser(row.userId, { payRate: rate });
+    } catch {
+      window.alert("Could not add to payroll. Try again.");
+    }
+  }
 
   async function markPaid(p: PayrollEntry) {
     try {
@@ -478,6 +581,77 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
           icon={<BadgeDollarSign className="h-4 w-4" />}
         />
       </div>
+
+      {isAdmin && awaiting.length > 0 && (
+        <Card className="mb-5 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+            <CalendarRange className="h-4 w-4 text-brand" /> Timesheets awaiting
+            payroll
+          </div>
+          <div className="space-y-2">
+            {awaiting.map((row) => {
+              const key = `${row.userId}|${row.weekStart.getTime()}`;
+              const rateStr =
+                tsRates[key] ?? (row.payRate != null ? String(row.payRate) : "");
+              const rate = parseFloat(rateStr) || 0;
+              return (
+                <div
+                  key={key}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-bg-soft px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-neutral-900">
+                      {row.userName}
+                    </div>
+                    <div className="text-xs text-neutral-500">
+                      Week of {dateOnly(row.weekStart.toISOString())} ·{" "}
+                      {row.hours}h ·{" "}
+                      <span
+                        className={
+                          row.approved
+                            ? "text-accent-green"
+                            : "text-accent-amber"
+                        }
+                      >
+                        {row.approved ? "approved" : "submitted"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-neutral-500">
+                    <span>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input h-8 w-20 px-2 py-1 text-right text-sm"
+                      value={rateStr}
+                      onChange={(e) =>
+                        setTsRates((m) => ({ ...m, [key]: e.target.value }))
+                      }
+                      placeholder="rate"
+                    />
+                    <span>/h</span>
+                  </div>
+                  <div className="w-20 text-right text-sm font-medium text-neutral-900">
+                    {money(Math.round(row.hours * rate * 100) / 100)}
+                  </div>
+                  <button
+                    className="btn-primary text-xs"
+                    disabled={rate <= 0}
+                    onClick={() => addFromTimesheet(row)}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-neutral-500">
+            Submitted timesheets show up here automatically. Set a rate (saved
+            per employee) and add them to payroll.
+          </p>
+        </Card>
+      )}
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-900">
