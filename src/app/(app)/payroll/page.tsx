@@ -99,7 +99,8 @@ export default function PayrollPage() {
             : "Submit expenses and see your pay history."
         }
       />
-
+      {/* Temporary build marker to confirm deploys are reaching the browser. */}
+      <div className="mb-3 text-[10px] text-neutral-300">build 2026-06-14b</div>
       <div className="mb-5 inline-flex rounded-lg border border-line bg-bg-soft p-1">
         {(["expenses", "payroll"] as const).map((t) => (
           <button
