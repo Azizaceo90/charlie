@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Bell,
@@ -551,17 +551,25 @@ function IssueModal({
 }: {
   open: boolean;
   onClose: () => void;
-  employees: { id: string; name: string }[];
+  employees: { id: string; name: string; payRate?: number | null }[];
   onIssue: (input: Omit<Contract, "id">) => Promise<void>;
   issuerSignature?: string | null;
 }) {
+  const { editUser } = useData();
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [assignee, setAssignee] = useState(employees[0]?.id ?? "");
+  const [payRate, setPayRate] = useState("");
   const [fileName, setFileName] = useState("");
   const [dataUrl, setDataUrl] = useState("");
   const [fields, setFields] = useState<ContractField[]>([]);
   const [error, setError] = useState("");
+
+  // Prefill the rate from the selected employee's confirmed rate.
+  useEffect(() => {
+    const emp = employees.find((e) => e.id === assignee);
+    setPayRate(emp?.payRate != null ? String(emp.payRate) : "");
+  }, [assignee, employees]);
 
   function reset() {
     setTitle("");
@@ -607,6 +615,15 @@ function IssueModal({
       fields: fields.length ? JSON.stringify(fields) : null,
       issuedAt: new Date().toISOString(),
     });
+    // Save the contracted rate to the employee so payroll uses it automatically.
+    const r = parseFloat(payRate);
+    if (Number.isFinite(r) && r >= 0 && r !== (emp.payRate ?? null)) {
+      try {
+        await editUser(emp.id, { payRate: r });
+      } catch {
+        /* non-fatal: contract still issued */
+      }
+    }
     reset();
     onClose();
   }
@@ -644,19 +661,36 @@ function IssueModal({
             placeholder="e.g. Employment Agreement 2026"
           />
         </div>
-        <div>
-          <label className="label">Assign to</label>
-          <select
-            className="input"
-            value={assignee}
-            onChange={(e) => setAssignee(e.target.value)}
-          >
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label">Assign to</label>
+            <select
+              className="input"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            >
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Pay rate (USD/hour)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="input"
+              value={payRate}
+              onChange={(e) => setPayRate(e.target.value)}
+              placeholder="0.00"
+            />
+            <p className="mt-1 text-[11px] text-neutral-500">
+              The contracted rate — saved to this employee and used for payroll.
+            </p>
+          </div>
         </div>
         {dataUrl && (
           <div className="rounded-lg border border-line bg-bg-soft p-3">

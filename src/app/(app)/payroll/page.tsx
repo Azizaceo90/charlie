@@ -647,8 +647,8 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
             })}
           </div>
           <p className="mt-2 text-[11px] text-neutral-500">
-            Submitted timesheets show up here automatically. Set a rate (saved
-            per employee) and add them to payroll.
+            Submitted timesheets show up here automatically. The rate is
+            prefilled from the employee&apos;s contract — adjust only if needed.
           </p>
         </Card>
       )}
