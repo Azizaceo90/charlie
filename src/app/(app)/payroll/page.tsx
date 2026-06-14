@@ -5,6 +5,7 @@ import {
   BadgeDollarSign,
   CheckCircle2,
   Clock,
+  Paperclip,
   Plus,
   Receipt,
   Trash2,
@@ -176,6 +177,18 @@ function ExpensesTab({ isAdmin }: { isAdmin: boolean }) {
                   {e.description ? ` · ${e.description}` : ""}
                 </div>
               </div>
+              {e.receiptUrl && (
+                <a
+                  href={e.receiptUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={e.receiptName ?? undefined}
+                  className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-brand"
+                  title="View receipt"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </a>
+              )}
               {isAdmin && e.status === "pending" && (
                 <>
                   <button
@@ -243,12 +256,16 @@ function AddExpenseModal({
     category: string;
     description: string | null;
     amount: number;
+    receiptUrl: string | null;
+    receiptName: string | null;
   }) => Promise<void>;
 }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptName, setReceiptName] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -257,7 +274,27 @@ function AddExpenseModal({
     setCategory(EXPENSE_CATEGORIES[0]);
     setDescription("");
     setAmount("");
+    setReceiptUrl(null);
+    setReceiptName(null);
     setError("");
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setReceiptUrl(null);
+      setReceiptName(null);
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Receipt is larger than 8 MB.");
+      return;
+    }
+    setError("");
+    setReceiptName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setReceiptUrl(reader.result as string);
+    reader.readAsDataURL(file);
   }
 
   async function submit() {
@@ -273,6 +310,8 @@ function AddExpenseModal({
         category,
         description: description.trim() || null,
         amount: Math.round(amt * 100) / 100,
+        receiptUrl,
+        receiptName,
       });
       reset();
       onClose();
@@ -336,6 +375,18 @@ function AddExpenseModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What was this for?"
           />
+        </div>
+        <div>
+          <label className="label">Receipt (optional)</label>
+          <input
+            type="file"
+            accept="application/pdf,image/*"
+            onChange={onFile}
+            className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-dim"
+          />
+          {receiptName && (
+            <p className="mt-1.5 text-xs text-accent-green">Attached {receiptName}</p>
+          )}
         </div>
         {error && <p className="text-xs text-accent-red">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
@@ -505,6 +556,7 @@ function AddPayrollModal({
     note: string | null;
   }) => Promise<void>;
 }) {
+  const { timeEntries } = useData();
   const [userId, setUserId] = useState(employees[0]?.id ?? "");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
@@ -515,6 +567,21 @@ function AddPayrollModal({
   const [saving, setSaving] = useState(false);
 
   const gross = (parseFloat(hours) || 0) * (parseFloat(rate) || 0);
+
+  // Approved hours from the Time Tracker for this employee + period.
+  const approvedHours = useMemo(() => {
+    if (!userId || !periodStart || !periodEnd) return null;
+    const start = new Date(periodStart).getTime();
+    const end = new Date(periodEnd).getTime() + 24 * 60 * 60 * 1000; // include end day
+    let mins = 0;
+    for (const t of timeEntries) {
+      if (t.userId !== userId || !t.approvedAt || !t.clockOut) continue;
+      const ci = new Date(t.clockIn).getTime();
+      if (ci < start || ci >= end) continue;
+      mins += (new Date(t.clockOut).getTime() - ci) / 60000;
+    }
+    return Math.round((mins / 60) * 100) / 100;
+  }, [userId, periodStart, periodEnd, timeEntries]);
 
   function reset() {
     setPeriodStart("");
@@ -625,6 +692,15 @@ function AddPayrollModal({
             />
           </div>
         </div>
+        {approvedHours != null && (
+          <button
+            type="button"
+            onClick={() => setHours(String(approvedHours))}
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            Use {approvedHours}h approved from Time Tracker for this period
+          </button>
+        )}
         <div className="rounded-lg border border-line bg-bg-soft px-3 py-2 text-sm">
           Gross pay:{" "}
           <span className="font-semibold text-neutral-900">{money(gross)}</span>

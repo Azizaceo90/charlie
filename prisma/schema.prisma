@@ -179,6 +179,8 @@ model Expense {
   description String?
   amount      Float
   status      String   @default("pending") // pending | approved | reimbursed | rejected
+  receiptUrl  String?  // base64 data URL of an uploaded receipt (PDF/image)
+  receiptName String?
   createdAt   DateTime @default(now())
 
   @@index([userId])
