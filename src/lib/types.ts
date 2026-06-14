@@ -156,6 +156,9 @@ export interface Expense {
   description?: string | null;
   amount: number;
   status: ExpenseStatus;
+  /** base64 data URL of an uploaded receipt (PDF/image) */
+  receiptUrl?: string | null;
+  receiptName?: string | null;
   createdAt?: string;
 }
 
