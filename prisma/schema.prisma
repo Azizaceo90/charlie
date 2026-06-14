@@ -34,6 +34,8 @@ model User {
   paymentMethod  String?
   paymentAccount String?
   onboardingDone Boolean   @default(false)
+  // Default hourly pay rate (USD), used to pre-fill payroll runs.
+  payRate        Float?
   // Reusable "built-in" signature (base64 PNG data URL) the user can drop
   // onto any contract signature field instead of re-drawing it each time.
   signature      String?

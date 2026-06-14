@@ -87,7 +87,13 @@ interface AppData {
   removeUser: (id: string) => Promise<string | null>;
   editUser: (
     id: string,
-    fields: { name?: string; email?: string; title?: string | null; role?: string }
+    fields: {
+      name?: string;
+      email?: string;
+      title?: string | null;
+      role?: string;
+      payRate?: number | null;
+    }
   ) => Promise<string | null>;
   impersonator: { id: string; name: string } | null;
   impersonateUser: (userId: string) => Promise<string | null>;

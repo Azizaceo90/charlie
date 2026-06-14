@@ -110,6 +110,7 @@ export interface PublicUser {
   paymentMethod?: string | null;
   paymentAccount?: string | null;
   onboardingDone?: boolean;
+  payRate?: number | null;
   signature?: string | null;
 }
 
@@ -129,6 +130,7 @@ export function publicUser(u: {
   paymentMethod?: string | null;
   paymentAccount?: string | null;
   onboardingDone?: boolean;
+  payRate?: number | null;
   signature?: string | null;
 }): PublicUser {
   return {
@@ -150,6 +152,7 @@ export function publicUser(u: {
     paymentMethod: u.paymentMethod ?? null,
     paymentAccount: u.paymentAccount ?? null,
     onboardingDone: Boolean(u.onboardingDone),
+    payRate: u.payRate ?? null,
     signature: u.signature ?? null,
   };
 }

@@ -15,6 +15,34 @@ export const RESOURCES = {
 
 export type ResourceKey = keyof typeof RESOURCES;
 
+/**
+ * Per-resource write authorization. Resources not listed here keep the default
+ * "any authenticated user" behavior. Admins always pass. "owner" means the
+ * acting user must own the record (record[ownerField] === user.id).
+ */
+export interface ResourcePolicy {
+  create?: "admin";
+  update?: "admin" | "owner";
+  delete?: "admin" | "owner";
+  /** Field on the record holding the owning user id (for owner checks). */
+  ownerField?: string;
+  /** On create, overwrite these fields with the acting user's id/name. */
+  forceOwner?: { idField: string; nameField?: string };
+  /** When a non-admin owner deletes, the record's status must be one of these. */
+  ownerDeleteStatuses?: string[];
+}
+
+export const POLICIES: Partial<Record<ResourceKey, ResourcePolicy>> = {
+  expenses: {
+    update: "admin", // only admins change status (approve/reimburse/reject)
+    delete: "owner", // owner may delete their own while pending; admins always
+    ownerField: "userId",
+    forceOwner: { idField: "userId", nameField: "userName" },
+    ownerDeleteStatuses: ["pending"],
+  },
+  payroll: { create: "admin", update: "admin", delete: "admin" },
+};
+
 export function isResource(key: string): key is ResourceKey {
   return Object.prototype.hasOwnProperty.call(RESOURCES, key);
 }
