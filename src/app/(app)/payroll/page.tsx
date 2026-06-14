@@ -77,9 +77,15 @@ const EXPENSE_CHIP: Record<string, string> = {
 };
 
 export default function PayrollPage() {
-  const { currentUser } = useData();
+  const { currentUser, refreshData } = useData();
   const isAdmin = currentUser?.role === "admin";
   const [tab, setTab] = useState<"expenses" | "payroll">("expenses");
+
+  // Pull the latest entries/payroll when opening the page so freshly submitted
+  // or approved timesheets show up without a manual reload.
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   if (!currentUser) return null;
 
@@ -468,7 +474,8 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
       { userId: string; weekStart: Date; hours: number; approved: boolean }
     >();
     for (const t of timeEntries) {
-      if (!t.submittedAt || !t.clockOut) continue;
+      // Surface any week that's been submitted or approved.
+      if (!(t.submittedAt || t.approvedAt) || !t.clockOut) continue;
       const ws = weekStartOf(new Date(t.clockIn));
       const key = `${t.userId}|${ws.getTime()}`;
       const dur =
