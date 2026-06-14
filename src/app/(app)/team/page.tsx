@@ -80,6 +80,7 @@ export default function TeamPage() {
                 <div className="truncate text-xs text-neutral-500">
                   {u.email}
                   {u.title ? ` · ${u.title}` : ""}
+                  {u.payRate != null ? ` · $${u.payRate}/h` : ""}
                 </div>
               </div>
               <span
@@ -150,6 +151,9 @@ function EditEmployeeModal({
   const [email, setEmail] = useState(user?.email ?? "");
   const [title, setTitle] = useState(user?.title ?? "");
   const [role, setRole] = useState<string>(user?.role ?? "employee");
+  const [payRate, setPayRate] = useState(
+    user?.payRate != null ? String(user.payRate) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -159,11 +163,22 @@ function EditEmployeeModal({
     setEmail(user.email);
     setTitle(user.title ?? "");
     setRole(user.role);
+    setPayRate(user.payRate != null ? String(user.payRate) : "");
     setError(null);
   }, [user?.id, user]);
 
   async function save() {
     if (!user) return;
+    let payRateVal: number | null = null;
+    const rateStr = payRate.trim();
+    if (rateStr !== "") {
+      const n = Number(rateStr);
+      if (!Number.isFinite(n) || n < 0) {
+        setError("Enter a valid pay rate.");
+        return;
+      }
+      payRateVal = Math.round(n * 100) / 100;
+    }
     setSaving(true);
     setError(null);
     const err = await editUser(user.id, {
@@ -171,6 +186,7 @@ function EditEmployeeModal({
       email: email.trim(),
       title: title.trim() || null,
       role,
+      payRate: payRateVal,
     });
     setSaving(false);
     if (err) setError(err);
@@ -229,6 +245,22 @@ function EditEmployeeModal({
               You can't change your own role.
             </p>
           )}
+        </div>
+        <div>
+          <label className="label">Pay rate (USD/hour)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            className="input"
+            value={payRate}
+            onChange={(e) => setPayRate(e.target.value)}
+            placeholder="e.g. 25.00"
+          />
+          <p className="mt-1 text-[11px] text-neutral-500">
+            Used to prefill payroll. Set automatically when you issue a contract
+            with a rate.
+          </p>
         </div>
         {error && <p className="text-xs text-accent-red">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
