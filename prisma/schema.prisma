@@ -169,3 +169,35 @@ model JobListing {
   applied     Boolean  @default(false)
   description String
 }
+
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  userName    String
+  date        DateTime
+  category    String
+  description String?
+  amount      Float
+  status      String   @default("pending") // pending | approved | reimbursed | rejected
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PayrollEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  userName    String
+  periodStart DateTime
+  periodEnd   DateTime
+  hours       Float     @default(0)
+  rate        Float     @default(0)
+  gross       Float     @default(0)
+  status      String    @default("pending") // pending | paid
+  method      String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+
+  @@index([userId])
+}

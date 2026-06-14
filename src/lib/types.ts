@@ -143,6 +143,40 @@ export interface Contract {
   signerName?: string;
 }
 
+// ── Payroll & Expenses ───────────────────────────────────────────────────────
+export type ExpenseStatus = "pending" | "approved" | "reimbursed" | "rejected";
+
+export interface Expense {
+  id: string;
+  userId: string;
+  userName: string;
+  /** ISO date the expense was incurred */
+  date: string;
+  category: string;
+  description?: string | null;
+  amount: number;
+  status: ExpenseStatus;
+  createdAt?: string;
+}
+
+export type PayrollStatus = "pending" | "paid";
+
+export interface PayrollEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  periodStart: string;
+  periodEnd: string;
+  hours: number;
+  rate: number;
+  gross: number;
+  status: PayrollStatus;
+  method?: string | null;
+  note?: string | null;
+  createdAt?: string;
+  paidAt?: string | null;
+}
+
 // ── Applicants (hiring pipeline) ─────────────────────────────────────────────
 export type ApplicantStage =
   | "applied"
