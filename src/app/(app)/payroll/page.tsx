@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
+  CalendarRange,
   CheckCircle2,
   Clock,
   Paperclip,
@@ -13,9 +14,29 @@ import {
   XCircle,
 } from "lucide-react";
 import { useData } from "@/lib/store";
-import { Expense, PayrollEntry } from "@/lib/types";
+import { Expense, PayrollEntry, TimeEntry } from "@/lib/types";
 import { Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
 import { dateOnly } from "@/lib/format";
+
+/** Sum a user's approved Time Tracker hours within a pay period (inclusive). */
+function approvedHoursFor(
+  userId: string,
+  periodStart: string,
+  periodEnd: string,
+  entries: TimeEntry[]
+): number {
+  if (!userId || !periodStart || !periodEnd) return 0;
+  const start = new Date(periodStart).getTime();
+  const end = new Date(periodEnd).getTime() + 24 * 60 * 60 * 1000; // include end day
+  let mins = 0;
+  for (const t of entries) {
+    if (t.userId !== userId || !t.approvedAt || !t.clockOut) continue;
+    const ci = new Date(t.clockIn).getTime();
+    if (ci < start || ci >= end) continue;
+    mins += (new Date(t.clockOut).getTime() - ci) / 60000;
+  }
+  return Math.round((mins / 60) * 100) / 100;
+}
 
 const EXPENSE_CATEGORIES = [
   "Travel",
@@ -411,6 +432,8 @@ function AddExpenseModal({
 function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
   const { payroll, addPayroll, updatePayroll, removePayroll, users } = useData();
   const [showAdd, setShowAdd] = useState(false);
+  const [showRun, setShowRun] = useState(false);
+  const employees = users.filter((u) => u.role === "employee");
 
   const totals = useMemo(() => {
     const sum = (s: string) =>
@@ -461,9 +484,14 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
           {isAdmin ? "Payroll runs" : "My pay history"}
         </h2>
         {isAdmin && (
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>
-            <Plus className="h-4 w-4" /> Add payroll entry
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-ghost" onClick={() => setShowRun(true)}>
+              <CalendarRange className="h-4 w-4" /> Run payroll
+            </button>
+            <button className="btn-primary" onClick={() => setShowAdd(true)}>
+              <Plus className="h-4 w-4" /> Add entry
+            </button>
+          </div>
         )}
       </div>
 
@@ -522,16 +550,201 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       {isAdmin && (
-        <AddPayrollModal
-          open={showAdd}
-          onClose={() => setShowAdd(false)}
-          employees={users.filter((u) => u.role === "employee")}
-          onAdd={async (input) => {
-            await addPayroll({ ...input, status: "pending" });
-          }}
-        />
+        <>
+          <AddPayrollModal
+            open={showAdd}
+            onClose={() => setShowAdd(false)}
+            employees={employees}
+            onAdd={async (input) => {
+              await addPayroll({ ...input, status: "pending" });
+            }}
+          />
+          <RunPayrollModal
+            open={showRun}
+            onClose={() => setShowRun(false)}
+            employees={employees}
+          />
+        </>
       )}
     </div>
+  );
+}
+
+function RunPayrollModal({
+  open,
+  onClose,
+  employees,
+}: {
+  open: boolean;
+  onClose: () => void;
+  employees: {
+    id: string;
+    name: string;
+    payRate?: number | null;
+    paymentMethod?: string | null;
+  }[];
+}) {
+  const { timeEntries, addPayroll, editUser } = useData();
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
+  const [rates, setRates] = useState<Record<string, string>>({});
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  // Prefill each rate from the employee's saved pay rate when opened.
+  useEffect(() => {
+    if (!open) return;
+    const init: Record<string, string> = {};
+    for (const e of employees) init[e.id] = e.payRate != null ? String(e.payRate) : "";
+    setRates(init);
+    setError("");
+  }, [open, employees]);
+
+  const rows = useMemo(
+    () =>
+      employees.map((e) => {
+        const hours = approvedHoursFor(e.id, periodStart, periodEnd, timeEntries);
+        const rate = parseFloat(rates[e.id] ?? "") || 0;
+        return { e, hours, rate, gross: Math.round(hours * rate * 100) / 100 };
+      }),
+    [employees, periodStart, periodEnd, timeEntries, rates]
+  );
+  const eligible = rows.filter((r) => r.hours > 0 && r.rate > 0);
+  const totalGross = eligible.reduce((a, r) => a + r.gross, 0);
+
+  async function run() {
+    if (!periodStart || !periodEnd) {
+      setError("Pick a pay period first.");
+      return;
+    }
+    if (eligible.length === 0) {
+      setError("No employees have approved hours and a rate in this period.");
+      return;
+    }
+    setCreating(true);
+    try {
+      for (const r of eligible) {
+        await addPayroll({
+          userId: r.e.id,
+          userName: r.e.name,
+          periodStart: new Date(periodStart).toISOString(),
+          periodEnd: new Date(periodEnd).toISOString(),
+          hours: r.hours,
+          rate: r.rate,
+          gross: r.gross,
+          status: "pending",
+          method: r.e.paymentMethod ?? null,
+          note: null,
+        });
+        // Remember the rate for next time.
+        if (r.rate !== (r.e.payRate ?? 0)) {
+          await editUser(r.e.id, { payRate: r.rate });
+        }
+      }
+      onClose();
+    } catch {
+      setError("Could not create the payroll run. Try again.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Run payroll for a period"
+      wide
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label">Period start</label>
+            <input
+              type="date"
+              className="input"
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">Period end</label>
+            <input
+              type="date"
+              className="input"
+              value={periodEnd}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-line">
+          <div className="grid grid-cols-[1fr_70px_90px_90px] gap-2 border-b border-line bg-bg-soft px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <span>Employee</span>
+            <span className="text-right">Hours</span>
+            <span className="text-right">Rate</span>
+            <span className="text-right">Gross</span>
+          </div>
+          {employees.length === 0 ? (
+            <div className="px-3 py-4 text-center text-xs text-neutral-400">
+              No employees.
+            </div>
+          ) : (
+            rows.map((r) => (
+              <div
+                key={r.e.id}
+                className={`grid grid-cols-[1fr_70px_90px_90px] items-center gap-2 px-3 py-2 text-sm ${
+                  r.hours > 0 ? "" : "opacity-50"
+                }`}
+              >
+                <span className="truncate text-neutral-800">{r.e.name}</span>
+                <span className="text-right tabular-nums text-neutral-600">
+                  {r.hours}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input h-8 px-2 py-1 text-right text-sm"
+                  value={rates[r.e.id] ?? ""}
+                  onChange={(e) =>
+                    setRates((m) => ({ ...m, [r.e.id]: e.target.value }))
+                  }
+                  placeholder="0.00"
+                />
+                <span className="text-right font-medium tabular-nums text-neutral-900">
+                  {money(r.gross)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-line bg-bg-soft px-3 py-2 text-sm">
+          <span className="text-neutral-600">
+            {eligible.length} entr{eligible.length === 1 ? "y" : "ies"} will be
+            created
+          </span>
+          <span className="font-semibold text-neutral-900">
+            Total {money(totalGross)}
+          </span>
+        </div>
+
+        {error && <p className="text-xs text-accent-red">{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={run}
+            disabled={creating || eligible.length === 0}
+          >
+            {creating ? "Creating…" : `Create ${eligible.length || ""} entries`}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -569,19 +782,13 @@ function AddPayrollModal({
   const gross = (parseFloat(hours) || 0) * (parseFloat(rate) || 0);
 
   // Approved hours from the Time Tracker for this employee + period.
-  const approvedHours = useMemo(() => {
-    if (!userId || !periodStart || !periodEnd) return null;
-    const start = new Date(periodStart).getTime();
-    const end = new Date(periodEnd).getTime() + 24 * 60 * 60 * 1000; // include end day
-    let mins = 0;
-    for (const t of timeEntries) {
-      if (t.userId !== userId || !t.approvedAt || !t.clockOut) continue;
-      const ci = new Date(t.clockIn).getTime();
-      if (ci < start || ci >= end) continue;
-      mins += (new Date(t.clockOut).getTime() - ci) / 60000;
-    }
-    return Math.round((mins / 60) * 100) / 100;
-  }, [userId, periodStart, periodEnd, timeEntries]);
+  const approvedHours = useMemo(
+    () =>
+      userId && periodStart && periodEnd
+        ? approvedHoursFor(userId, periodStart, periodEnd, timeEntries)
+        : null,
+    [userId, periodStart, periodEnd, timeEntries]
+  );
 
   function reset() {
     setPeriodStart("");

@@ -16,6 +16,8 @@ export interface User {
   paymentMethod?: string | null;
   paymentAccount?: string | null;
   onboardingDone?: boolean;
+  /** Default hourly pay rate (USD). */
+  payRate?: number | null;
   /** Reusable saved signature (base64 PNG data URL). */
   signature?: string | null;
 }

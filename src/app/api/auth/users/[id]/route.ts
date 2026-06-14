@@ -19,6 +19,7 @@ export async function PATCH(
     email?: string;
     title?: string | null;
     role?: string;
+    payRate?: number | null;
   };
   // Prevent admin from demoting themselves to a non-admin.
   if (admin.id === params.id && body.role && body.role !== "admin") {
@@ -52,6 +53,12 @@ export async function PATCH(
           body.role === "admin" || body.role === "employee"
             ? body.role
             : undefined,
+        payRate:
+          body.payRate === undefined
+            ? undefined
+            : body.payRate === null
+              ? null
+              : Number(body.payRate),
       },
     });
     return NextResponse.json({ user: publicUser(updated) });
