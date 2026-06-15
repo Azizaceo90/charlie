@@ -93,6 +93,7 @@ interface AppData {
       title?: string | null;
       role?: string;
       payRate?: number | null;
+      projects?: string | null;
     }
   ) => Promise<string | null>;
   impersonator: { id: string; name: string } | null;

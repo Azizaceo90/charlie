@@ -40,7 +40,12 @@ export async function GET() {
         // Payment info is sensitive — only include for admins so they can
         // pay people when approving timesheets.
         ...(me.role === "admin"
-          ? { paymentMethod: true, paymentAccount: true, payRate: true }
+          ? {
+              paymentMethod: true,
+              paymentAccount: true,
+              payRate: true,
+              projects: true,
+            }
           : {}),
       },
     }),

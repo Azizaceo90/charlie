@@ -36,6 +36,9 @@ model User {
   onboardingDone Boolean   @default(false)
   // Default hourly pay rate (USD), used to pre-fill payroll runs.
   payRate        Float?
+  // Comma-separated timesheet projects assigned to this employee. When set,
+  // overrides the default project list derived from their title.
+  projects       String?
   // Reusable "built-in" signature (base64 PNG data URL) the user can drop
   // onto any contract signature field instead of re-drawing it each time.
   signature      String?

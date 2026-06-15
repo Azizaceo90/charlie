@@ -18,6 +18,8 @@ export interface User {
   onboardingDone?: boolean;
   /** Default hourly pay rate (USD). */
   payRate?: number | null;
+  /** Comma-separated timesheet projects assigned to this employee. */
+  projects?: string | null;
   /** Reusable saved signature (base64 PNG data URL). */
   signature?: string | null;
 }

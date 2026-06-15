@@ -154,6 +154,7 @@ function EditEmployeeModal({
   const [payRate, setPayRate] = useState(
     user?.payRate != null ? String(user.payRate) : ""
   );
+  const [projects, setProjects] = useState(user?.projects ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,6 +165,7 @@ function EditEmployeeModal({
     setTitle(user.title ?? "");
     setRole(user.role);
     setPayRate(user.payRate != null ? String(user.payRate) : "");
+    setProjects(user.projects ?? "");
     setError(null);
   }, [user?.id, user]);
 
@@ -187,6 +189,7 @@ function EditEmployeeModal({
       title: title.trim() || null,
       role,
       payRate: payRateVal,
+      projects: projects.trim() || null,
     });
     setSaving(false);
     if (err) setError(err);
@@ -260,6 +263,19 @@ function EditEmployeeModal({
           <p className="mt-1 text-[11px] text-neutral-500">
             Used to prefill payroll. Set automatically when you issue a contract
             with a rate.
+          </p>
+        </div>
+        <div>
+          <label className="label">Timesheet projects</label>
+          <input
+            className="input"
+            value={projects}
+            onChange={(e) => setProjects(e.target.value)}
+            placeholder="e.g. UHC, St Bernards"
+          />
+          <p className="mt-1 text-[11px] text-neutral-500">
+            Comma-separated. What this employee can log time to. Leave blank to
+            use the default list for their title.
           </p>
         </div>
         {error && <p className="text-xs text-accent-red">{error}</p>}
