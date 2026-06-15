@@ -1,9 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDates, db, isResource, POLICIES } from "@/lib/resources";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyOnUpdate(resource: string, updated: any, patch: Record<string, unknown>) {
+  try {
+    if (
+      resource === "expenses" &&
+      typeof patch.status === "string" &&
+      ["approved", "reimbursed", "rejected"].includes(patch.status)
+    ) {
+      const amt =
+        typeof updated.amount === "number" ? `$${updated.amount.toFixed(2)} ` : "";
+      await prisma.notification.create({
+        data: {
+          userId: updated.userId,
+          type: `expense_${patch.status}`,
+          title: `Your ${amt}expense was ${patch.status}`,
+          body: `${updated.category ?? "Expense"} — ${patch.status}.`,
+          link: "/payroll",
+        },
+      });
+    }
+    if (resource === "payroll" && patch.status === "paid") {
+      const amt =
+        typeof updated.gross === "number" ? `$${updated.gross.toFixed(2)}` : "";
+      await prisma.notification.create({
+        data: {
+          userId: updated.userId,
+          type: "payroll_paid",
+          title: `You were paid ${amt}`.trim(),
+          body: "Your payroll entry was marked paid. See Payroll & Expenses.",
+          link: "/payroll",
+        },
+      });
+    }
+  } catch {
+    /* notifications are best-effort */
+  }
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -39,6 +78,7 @@ export async function PATCH(
       where: { id: params.id },
       data: coerceDates(params.resource, body),
     });
+    await notifyOnUpdate(params.resource, updated, body);
     return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json(
