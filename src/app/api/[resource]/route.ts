@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDates, db, isResource, POLICIES } from "@/lib/resources";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,34 @@ export async function POST(
     const created = await db(params.resource).create({
       data: coerceDates(params.resource, body),
     });
+
+    // Notify admins when an expense is submitted for review.
+    if (params.resource === "expenses") {
+      try {
+        const admins = await prisma.user.findMany({
+          where: { role: "admin", NOT: { id: user.id } },
+          select: { id: true },
+        });
+        if (admins.length) {
+          const amt =
+            typeof created.amount === "number"
+              ? `$${created.amount.toFixed(2)} `
+              : "an ";
+          await prisma.notification.createMany({
+            data: admins.map((a) => ({
+              userId: a.id,
+              type: "expense_submitted",
+              title: `${created.userName} submitted ${amt}expense`,
+              body: `${created.category ?? "Expense"} — review it in Payroll & Expenses.`,
+              link: "/payroll",
+            })),
+          });
+        }
+      } catch {
+        /* notifications are best-effort */
+      }
+    }
+
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
     return NextResponse.json(
