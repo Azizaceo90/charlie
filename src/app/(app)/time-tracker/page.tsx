@@ -25,6 +25,18 @@ function projectsFor(title?: string | null): string[] {
   return PROJECTS;
 }
 
+/** Per-employee assigned projects (comma-separated) override the title default. */
+function projectsForUser(user?: {
+  title?: string | null;
+  projects?: string | null;
+}): string[] {
+  const custom = (user?.projects ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return custom.length ? custom : projectsFor(user?.title);
+}
+
 function entryMinutes(e: TimeEntry, now: number): number {
   const end = e.clockOut ? new Date(e.clockOut).getTime() : now;
   return (end - new Date(e.clockIn).getTime()) / 60000;
@@ -54,7 +66,7 @@ function PersonalTracker() {
     submitTimesheet,
   } = useData();
   const [tick, setTick] = useState(Date.now());
-  const projects = projectsFor(currentUser?.title);
+  const projects = projectsForUser(currentUser ?? undefined);
   const [project, setProject] = useState(projects[0]);
   const [note, setNote] = useState("");
   const [range, setRange] = useState<RangeKey>("7days");
