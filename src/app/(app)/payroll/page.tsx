@@ -572,6 +572,51 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
+  const pendingPayroll = payroll.filter((p) => p.status !== "paid");
+  const paidPayroll = payroll.filter((p) => p.status === "paid");
+
+  const payrollRow = (p: PayrollEntry) => (
+    <div key={p.id} className="flex items-center gap-3 p-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-neutral-900">
+            {money(p.gross)}
+          </span>
+          <span
+            className={`chip ${
+              p.status === "paid"
+                ? "bg-accent-green/15 text-accent-green"
+                : "bg-accent-amber/15 text-accent-amber"
+            }`}
+          >
+            {p.status}
+          </span>
+        </div>
+        <div className="mt-0.5 truncate text-xs text-neutral-500">
+          {isAdmin && <span className="font-medium">{p.userName} · </span>}
+          {dateOnly(p.periodStart)} – {dateOnly(p.periodEnd)} · {p.hours}h @{" "}
+          {money(p.rate)}/h
+          {p.method ? ` · ${p.method}` : ""}
+          {p.status === "paid" && p.paidAt ? ` · paid ${dateOnly(p.paidAt)}` : ""}
+        </div>
+      </div>
+      {isAdmin && p.status === "pending" && (
+        <button className="btn-subtle text-xs" onClick={() => markPaid(p)}>
+          <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid
+        </button>
+      )}
+      {isAdmin && (
+        <button
+          className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-accent-red"
+          title="Delete"
+          onClick={() => del(p)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -676,58 +721,30 @@ function PayrollTab({ isAdmin }: { isAdmin: boolean }) {
         )}
       </div>
 
-      {payroll.length === 0 ? (
+      {pendingPayroll.length === 0 ? (
         <EmptyState
           icon={<Wallet className="h-8 w-8" />}
-          title="No payroll entries yet"
-          hint={isAdmin ? "Add one to record a pay run." : "Nothing here yet."}
+          title="No pending payroll"
+          hint={isAdmin ? "Add one to record a pay run." : "Nothing pending."}
         />
       ) : (
         <Card className="divide-y divide-line">
-          {payroll.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 p-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-neutral-900">
-                    {money(p.gross)}
-                  </span>
-                  <span
-                    className={`chip ${
-                      p.status === "paid"
-                        ? "bg-accent-green/15 text-accent-green"
-                        : "bg-accent-amber/15 text-accent-amber"
-                    }`}
-                  >
-                    {p.status}
-                  </span>
-                </div>
-                <div className="mt-0.5 truncate text-xs text-neutral-500">
-                  {isAdmin && <span className="font-medium">{p.userName} · </span>}
-                  {dateOnly(p.periodStart)} – {dateOnly(p.periodEnd)} ·{" "}
-                  {p.hours}h @ {money(p.rate)}/h
-                  {p.method ? ` · ${p.method}` : ""}
-                </div>
-              </div>
-              {isAdmin && p.status === "pending" && (
-                <button
-                  className="btn-subtle text-xs"
-                  onClick={() => markPaid(p)}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  className="rounded-md p-1.5 text-neutral-400 hover:bg-bg-hover hover:text-accent-red"
-                  title="Delete"
-                  onClick={() => del(p)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ))}
+          {pendingPayroll.map(payrollRow)}
         </Card>
+      )}
+
+      {paidPayroll.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-neutral-900">Paid</h2>
+            <span className="chip bg-accent-green/15 text-accent-green">
+              {money(totals.paid)}
+            </span>
+          </div>
+          <Card className="divide-y divide-line">
+            {paidPayroll.map(payrollRow)}
+          </Card>
+        </div>
       )}
 
       {isAdmin && (
