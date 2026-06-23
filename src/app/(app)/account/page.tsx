@@ -15,6 +15,7 @@ import { PersonalDoc } from "@/lib/types";
 import { Card, PageHeader } from "@/components/ui";
 import { ago } from "@/lib/format";
 import SignaturePad from "@/components/SignaturePad";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const DOC_CATEGORIES = ["ID"];
 
@@ -56,12 +57,70 @@ function SignatureSection() {
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   async function persist(dataUrl: string | null) {
     setError(null);
     const err = await saveSignature(dataUrl);
     if (err) setError(err);
     else setSavedAt(Date.now());
+  }
+
+  // Wrap the saved signature image into a one-page PDF and download it.
+  async function downloadPdf() {
+    if (!saved) return;
+    setDownloading(true);
+    setError(null);
+    try {
+      const pdf = await PDFDocument.create();
+      const page = pdf.addPage([420, 200]);
+      const b64 = saved.split(",")[1] ?? "";
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const img = saved.includes("image/jpeg")
+        ? await pdf.embedJpg(bytes)
+        : await pdf.embedPng(bytes);
+      const scale = Math.min(360 / img.width, 110 / img.height, 1);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      page.drawImage(img, {
+        x: (420 - w) / 2,
+        y: (200 - h) / 2 + 12,
+        width: w,
+        height: h,
+      });
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      const name =
+        currentUser?.fullLegalName ?? currentUser?.name ?? "Signature";
+      page.drawLine({
+        start: { x: 40, y: 56 },
+        end: { x: 380, y: 56 },
+        thickness: 0.5,
+        color: rgb(0.7, 0.7, 0.75),
+      });
+      page.drawText(name, {
+        x: 40,
+        y: 40,
+        size: 10,
+        font,
+        color: rgb(0.3, 0.3, 0.35),
+      });
+      const out = await pdf.save();
+      const blob = new Blob([out as unknown as BlobPart], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name.replace(/\s+/g, "-").toLowerCase()}-signature.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Could not generate the PDF. Try again.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -86,22 +145,37 @@ function SignatureSection() {
               alt="Saved signature"
               className="h-16 rounded bg-white px-2"
             />
-            <button
-              onClick={async () => {
-                setRemoving(true);
-                await persist(null);
-                setRemoving(false);
-              }}
-              disabled={removing}
-              className="btn-subtle text-xs"
-            >
-              {removing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              Remove
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={downloadPdf}
+                disabled={downloading}
+                className="btn-subtle text-xs"
+                title="Download your signature as a PDF"
+              >
+                {downloading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                Download PDF
+              </button>
+              <button
+                onClick={async () => {
+                  setRemoving(true);
+                  await persist(null);
+                  setRemoving(false);
+                }}
+                disabled={removing}
+                className="btn-subtle text-xs"
+              >
+                {removing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       )}
